@@ -24,9 +24,7 @@ class AskRequest(BaseModel):
     question: str
 
 class AskResponse(BaseModel):
-    answer_preview: str
-    top_scores: List[float]
-    top_snippets: List[str]
+    answer: str
     
 
 class LoginRequest(BaseModel):

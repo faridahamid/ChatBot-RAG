@@ -14,17 +14,109 @@ from fastapi.responses import HTMLResponse
 from database import get_db
 from models import Organization, User, DocumentChunk
 from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse
+# from llm import generate_with_gemini  # removed; using get_gemini/make_prompt now
 from ingestion import process_document, process_document_from_bytes, embed_query
 
 app = FastAPI(title="Multi-Org RAG Backend")
 
 
 from database import engine
+# main.py (additions)
+import os
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy.orm import Session
+from typing import List
+
+from database import get_db
+from models import Document, DocumentChunk, Chat, ChatMessage
+from schemas import AskRequest, AskResponse, UploadResponse
+from ingestion import process_document, embed_query
+from llm import get_gemini, make_prompt
+
+app = FastAPI(title="Org-RAG Backend")
+
+
+
+
+@app.post("/ask", response_model=AskResponse)
+def ask(payload: AskRequest, db: Session = Depends(get_db)):
+    # Enforce that only non-admin users can ask, and they must belong to the org
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if str(user.organization_id) != str(payload.org_id):
+        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+    if (user.role or "").lower() != "user":
+        return AskResponse(answer="You are an admin; you can't ask questions in this interface.")
+
+    # Embed query
+    qvec = embed_query(payload.question)
+    qvec_np = np.array(qvec, dtype=np.float32)
+
+    # Retrieve top-k via pgvector distance operator `<=>` (lower is closer)
+    top_k = int(os.getenv("RAG_TOP_K", "5"))
+    sql = text(
+        f"""
+        SELECT 
+            dc.id AS chunk_id,
+            dc.content AS content,
+            d.filename AS filename,
+            (dc.embedding <=> (:q)::vector) AS distance
+        FROM document_chunks AS dc
+        JOIN documents AS d ON d.id = dc.document_id
+        WHERE d.organization_id = :org
+        ORDER BY dc.embedding <=> (:q)::vector
+        LIMIT {top_k}
+        """
+    )
+    rows = db.execute(sql, {"q": qvec_np.tolist(), "org": str(payload.org_id)}).fetchall()
+
+    if not rows:
+        grounded_answer = (
+            "I don’t have information about that in the current organization’s knowledge base."
+        )
+        return AskResponse(answer=grounded_answer)
+
+    snippets: List[str] = [r.content for r in rows]
+    scores = [max(0.0, 1.0 - float(r.distance)) for r in rows]
+
+    # If confidence is low, refuse without adding any hotline/contact info
+    refusal_threshold = float(os.getenv("RAG_REFUSAL_THRESHOLD", "0.65"))
+    if scores[0] < refusal_threshold:
+        msg = "I don’t have enough information to answer from this organization’s data."
+        return AskResponse(answer=msg)
+
+    # Build grounded prompt and ask Gemini
+    prompt = make_prompt(payload.question, snippets)
+    model = get_gemini()
+    try:
+        result = model.generate_content(prompt)
+        answer_text = (getattr(result, "text", "") or "").strip()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM error: {e}")
+
+    # Optionally persist the exchange
+    try:
+        chat = Chat(user_id=payload.user_id, title=payload.question[:80])
+        db.add(chat)
+        db.flush()
+        db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
+        citations = [
+            {"chunk_id": str(r.chunk_id), "filename": r.filename, "score": s}
+            for r, s in zip(rows, scores)
+        ]
+        db.add(ChatMessage(chat_id=chat.id, role="assistant", content=answer_text, citations=citations))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return AskResponse(answer=answer_text.strip())
 
 @app.on_event("startup")
 def _ensure_indexes():
     with engine.begin() as conn:
-        # Add column if missing
+       
         conn.execute(text(
             """
             DO $$
@@ -82,6 +174,15 @@ def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
+    # Only admins of the target organization can upload
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if str(user.organization_id) != str(org_id):
+        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+    if (user.role or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can upload documents")
+
     filetype = file.filename.split(".")[-1]
     file_bytes = file.file.read()
     try:
@@ -101,41 +202,6 @@ def upload_document(
     return UploadResponse(**result)
 
 
-
-@app.post("/ask", response_model=AskResponse)
-def ask_question(payload: AskRequest, db: Session = Depends(get_db)):
-    query_vec = embed_query(payload.question)
-    query_vec_np = np.array(query_vec, dtype=np.float32)
-
-    sql = text("""
-        SELECT 
-            document_chunks.content,
-            1 - (document_chunks.embedding <=> :query_vec) AS score
-        FROM document_chunks
-        JOIN documents ON documents.id = document_chunks.document_id
-        WHERE documents.organization_id = :org_id
-        ORDER BY document_chunks.embedding <=> :query_vec
-        LIMIT 5
-    """)
-
-    rows = db.execute(sql, {
-        "query_vec": query_vec_np.tolist(),
-        "org_id": str(payload.org_id)
-    }).fetchall()
-
-    if not rows:
-        raise HTTPException(status_code=404, detail="No matches found")
-
-    top_snippets = [r.content for r in rows]
-    top_scores = [float(r.score) for r in rows]
-
-    return AskResponse(
-        answer_preview=top_snippets[0],
-        top_scores=top_scores,
-        top_snippets=top_snippets
-    )
-
-
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "RAG backend is running"}
@@ -153,6 +219,35 @@ def home():
       <input type="file" name="file" required><br><br>
       <button type="submit">Upload</button>
     </form>
+
+    <hr/>
+
+    <h2>Ask (RAG)</h2>
+    <form id="askForm">
+      <input type="text" id="org_id" placeholder="Organization ID" required><br><br>
+      <input type="text" id="user_id" placeholder="User ID" required><br><br>
+      <textarea id="question" placeholder="Your question..." rows="4" cols="60" required></textarea><br><br>
+      <button type="submit">Ask</button>
+    </form>
+    <pre id="answer"></pre>
+
+    <script>
+      document.getElementById('askForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const org_id = document.getElementById('org_id').value;
+        const user_id = document.getElementById('user_id').value;
+        const question = document.getElementById('question').value;
+        const res = await fetch('/ask', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ org_id, user_id, question })
+        });
+         const data = await res.json();
+         document.getElementById('answer').textContent = data.answer || JSON.stringify(data);
+      });
+    </script>
   </body>
 </html>
+
     """
+

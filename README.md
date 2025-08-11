@@ -1,6 +1,6 @@
 # Multi-Organization RAG Chatbot Platform
 
-A domain-specific AI chatbot** platform that allows multiple organizations to deploy their own intelligent assistant.  
+A **domain-specific AI chatbot** platform that allows multiple organizations to deploy their own intelligent assistant.  
 Each chatbot responds **only** from its organization's uploaded content, ensuring **data isolation** and **context-aware answers**.
 
 ---

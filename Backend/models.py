@@ -31,7 +31,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(Text, unique=True, nullable=False)
     password_hash = Column(Text, nullable=False)
-    # TEXT to match your CHECK constraint in SQL (not a DB enum)
+    
     role = Column(Text, nullable=False)  # values enforced by DB CHECK
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
@@ -45,10 +45,12 @@ class Document(Base):
     __tablename__ = "documents"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
-    # IMPORTANT: nullable=True to be consistent with ON DELETE SET NULL
+    
     uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     filename = Column(Text, nullable=False)
-    filetype = Column(Text, nullable=False)  # pdf | csv | docx | txt
+    filetype = Column(Text, nullable=False)  
+
+    content_hash = Column(Text, nullable=True)
     uploaded_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     organization = relationship("Organization", back_populates="documents")
@@ -83,10 +85,10 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     chat_id = Column(UUID(as_uuid=True), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
-    # Use the existing Postgres enum type 'msg_role'; don't recreate it
+    
     role = Column(Enum("user", "assistant", name="msg_role", create_type=False), nullable=False)
     content = Column(Text, nullable=False)
-    citations = Column(JSONB)  # e.g., [{"document_id": "...", "chunk_id": "...", "filename": "...", "score": 0.87}, ...]
+    citations = Column(JSONB)  
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     chat = relationship("Chat", back_populates="messages")
@@ -99,7 +101,7 @@ class Feedback(Base):
     chat_id = Column(UUID(as_uuid=True), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
     message_id = Column(UUID(as_uuid=True), ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    rating = Column(Integer)  # DB has CHECK (1..5); we rely on DB for that
+    rating = Column(Integer) 
     comment = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 

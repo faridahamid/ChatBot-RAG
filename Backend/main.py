@@ -8,36 +8,112 @@ from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import numpy as np
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
-
-from database import get_db
-from models import Organization, User, DocumentChunk
+from database import get_db, engine
+from models import Organization, User, DocumentChunk, Document, Chat, ChatMessage
 from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse
-# from llm import generate_with_gemini  # removed; using get_gemini/make_prompt now
 from ingestion import process_document, process_document_from_bytes, embed_query
+from llm import get_gemini, make_prompt
+from admin_auth import router as admin_router
 
+# Create single FastAPI app instance
 app = FastAPI(title="Multi-Org RAG Backend")
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-from database import engine
-# main.py (additions)
-import os
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
-from sqlalchemy.orm import Session
-from typing import List
+# Include admin router
+app.include_router(admin_router)
 
-from database import get_db
-from models import Document, DocumentChunk, Chat, ChatMessage
-from schemas import AskRequest, AskResponse, UploadResponse
-from ingestion import process_document, embed_query
-from llm import get_gemini, make_prompt
+# ========================================
+# FRONTEND ROUTES
+# ========================================
 
-app = FastAPI(title="Org-RAG Backend")
+@app.get("/", response_class=HTMLResponse)
+def welcome_page():
+    """Serve the welcome page"""
+    try:
+        with open("Frontend/pages/welcome.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Welcome page not found</h1>", status_code=404)
 
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    """Serve the login page"""
+    try:
+        with open("Frontend/pages/login.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Login page not found</h1>", status_code=404)
 
+@app.get("/admin-register", response_class=HTMLResponse)
+def admin_register_page():
+    """Serve the admin registration page"""
+    try:
+        with open("Frontend/pages/admin_register.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin registration page not found</h1>", status_code=404)
 
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page():
+    """Serve the dashboard page"""
+    try:
+        with open("Frontend/pages/dashboard.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Dashboard page not found</h1>", status_code=404)
+
+@app.get("/admin-upload", response_class=HTMLResponse)
+def admin_upload_page():
+    """Serve the admin upload page"""
+    try:
+        with open("Frontend/pages/admin_upload.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin upload page not found</h1>", status_code=404)
+
+@app.get("/admin-users", response_class=HTMLResponse)
+def admin_users_page():
+    """Serve the admin user management page"""
+    try:
+        with open("Frontend/pages/admin_users.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin users page not found</h1>", status_code=404)
+
+# ========================================
+# STATIC FILES ROUTES
+# ========================================
+
+@app.get("/css/{filename}")
+def get_css(filename: str):
+    """Serve CSS files"""
+    try:
+        return FileResponse(f"Frontend/css/{filename}")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="CSS file not found")
+
+@app.get("/js/{filename}")
+def get_js(filename: str):
+    """Serve JavaScript files"""
+    try:
+        return FileResponse(f"Frontend/js/{filename}")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="JavaScript file not found")
+
+# ========================================
+# API ENDPOINTS
+# ========================================
 
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, db: Session = Depends(get_db)):
@@ -74,7 +150,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
 
     if not rows:
         grounded_answer = (
-            "I don’t have information about that in the current organization’s knowledge base."
+            "I don't have information about that in the current organization's knowledge base."
         )
         return AskResponse(answer=grounded_answer)
 
@@ -84,7 +160,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     # If confidence is low, refuse without adding any hotline/contact info
     refusal_threshold = float(os.getenv("RAG_REFUSAL_THRESHOLD", "0.65"))
     if scores[0] < refusal_threshold:
-        msg = "I don’t have enough information to answer from this organization’s data."
+        msg = "I don't have enough information to answer from this organization's data."
         return AskResponse(answer=msg)
 
     # Build grounded prompt and ask Gemini
@@ -112,60 +188,6 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         db.rollback()
 
     return AskResponse(answer=answer_text.strip())
-
-@app.on_event("startup")
-def _ensure_indexes():
-    with engine.begin() as conn:
-       
-        conn.execute(text(
-            """
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1
-                    FROM information_schema.columns
-                    WHERE table_name='documents' AND column_name='content_hash'
-                ) THEN
-                    ALTER TABLE documents ADD COLUMN content_hash TEXT;
-                END IF;
-            END $$;
-            """
-        ))
-        
-        conn.execute(text(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS ux_documents_org_hash
-            ON documents (organization_id, content_hash);
-            """
-        ))
-
-
-
-@app.post("/orgs", response_model=dict)
-def create_org(payload: OrgCreate, db: Session = Depends(get_db)):
-    org = Organization(name=payload.name, description=payload.description)
-    db.add(org)
-    db.commit()
-    db.refresh(org)
-    return {"id": org.id, "name": org.name}
-
-
-
-@app.post("/users", response_model=dict)
-def create_user(payload: UserCreate, db: Session = Depends(get_db)):
-    
-    user = User(
-        username=payload.username,
-        password_hash=payload.password,
-        role=payload.role,
-        organization_id=payload.organization_id
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return {"id": user.id, "username": user.username}
-
-
 
 @app.post("/upload", response_model=UploadResponse)
 def upload_document(
@@ -200,11 +222,6 @@ def upload_document(
         raise
 
     return UploadResponse(**result)
-
-
-@app.get("/")
-def health_check():
-    return {"status": "ok", "message": "RAG backend is running"}
 
 @app.get("/test", response_class=HTMLResponse)
 def home():
@@ -248,6 +265,72 @@ def home():
     </script>
   </body>
 </html>
-
     """
 
+
+@app.on_event("startup")
+def _ensure_indexes():
+    with engine.begin() as conn:
+       
+        conn.execute(text(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name='documents' AND column_name='content_hash'
+                ) THEN
+                    ALTER TABLE documents ADD COLUMN content_hash TEXT;
+                END IF;
+            END $$;
+            """
+        ))
+        
+        conn.execute(text(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_documents_org_hash
+            ON documents (organization_id, content_hash);
+            """
+        ))
+
+
+
+@app.post("/orgs", response_model=dict)
+def create_org(payload: OrgCreate, db: Session = Depends(get_db)):
+    org = Organization(name=payload.name, description=payload.description)
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    return {"id": org.id, "name": org.name}
+
+
+
+@app.post("/users", response_model=dict)
+def create_user(payload: UserCreate, db: Session = Depends(get_db)):
+    from admin_auth import hash_password
+    
+    # Check if username already exists
+    existing_user = db.query(User).filter(User.username == payload.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    # Hash the password
+    password_hash = hash_password(payload.password)
+    
+    user = User(
+        username=payload.username,
+        password_hash=password_hash,
+        role=payload.role,
+        organization_id=payload.organization_id
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "username": user.username}
+
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "RAG backend is running"}

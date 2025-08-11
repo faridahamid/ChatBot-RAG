@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin File Upload - RAG ChatBot</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .header {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .header h1 {
+        color: #667eea;
+        font-size: 1.8rem;
+        font-weight: 700;
+      }
+
+      .user-info {
+        text-align: right;
+        color: #666;
+      }
+
+      .user-info .username {
+        font-weight: 600;
+        color: #667eea;
+      }
+
+      .user-info .organization {
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+      }
+
+      .logout-btn {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.3s ease;
+      }
+
+      .logout-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .main-container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .upload-container {
+        background: white;
+        padding: 3rem;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .upload-container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+      }
+
+      .upload-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .upload-header h2 {
+        color: #667eea;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
+
+      .upload-header p {
+        color: #666;
+        font-size: 1rem;
+      }
+
+      .file-upload-area {
+        border: 3px dashed #e1e5e9;
+        border-radius: 15px;
+        padding: 3rem 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        cursor: pointer;
+      }
+
+      .file-upload-area:hover {
+        border-color: #667eea;
+        background: #f0f2ff;
+        transform: translateY(-2px);
+      }
+
+      .file-upload-area.dragover {
+        border-color: #667eea;
+        background: #f0f2ff;
+        transform: scale(1.02);
+      }
+
+      .upload-icon {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 1rem;
+      }
+
+      .upload-text {
+        color: #666;
+        margin-bottom: 1rem;
+      }
+
+      .upload-text strong {
+        color: #667eea;
+      }
+
+      .file-input {
+        display: none;
+      }
+
+      .file-info {
+        display: none;
+        background: #e8f5e8;
+        border: 1px solid #c3e6cb;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-align: left;
+      }
+
+      .file-info.show {
+        display: block;
+      }
+
+      .file-name {
+        font-weight: 600;
+        color: #155724;
+        margin-bottom: 0.5rem;
+      }
+
+      .file-size {
+        color: #666;
+        font-size: 0.9rem;
+      }
+
+      .upload-btn {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+        margin-bottom: 1rem;
+        display: none;
+      }
+
+      .upload-btn.show {
+        display: block;
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .upload-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .message {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        text-align: center;
+        font-weight: 500;
+      }
+
+      .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        margin-top: 1rem;
+      }
+
+      .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .supported-formats {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+      }
+
+      .supported-formats h3 {
+        color: #667eea;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+      }
+
+      .format-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .format-tag {
+        background: #667eea;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .navigation {
+        text-align: center;
+        margin-top: 2rem;
+      }
+
+      .nav-btn {
+        display: inline-block;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        text-decoration: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        margin: 0 0.5rem;
+        transition: transform 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+      }
+
+      @media (max-width: 768px) {
+        .header {
+          flex-direction: column;
+          text-align: center;
+        }
+
+        .user-info {
+          text-align: center;
+        }
+
+        .upload-container {
+          padding: 2rem;
+        }
+
+        .file-upload-area {
+          padding: 2rem 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <!-- Header with user info -->
+      <div class="header">
+        <div>
+          <h1>Admin Dashboard</h1>
+        </div>
+        <div class="user-info">
+          <div class="username" id="username">Loading...</div>
+          <div class="organization" id="organization">Loading...</div>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+
+      <!-- Main upload container -->
+      <div class="upload-container">
+        <div class="upload-header">
+          <h2>📁 File Upload</h2>
+          <p>Upload documents to your organization's knowledge base</p>
+        </div>
+
+        <div id="message"></div>
+
+        <div class="file-upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">📤</div>
+          <div class="upload-text">
+            <strong>Click to select</strong> or drag and drop files here
+          </div>
+          <div class="upload-text" style="font-size: 0.9rem; color: #888;">
+            Supports PDF, DOCX, TXT, CSV files
+          </div>
+        </div>
+
+        <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx,.txt,.csv" />
+
+        <div class="file-info" id="fileInfo">
+          <div class="file-name" id="fileName"></div>
+          <div class="file-size" id="fileSize"></div>
+        </div>
+
+        <button class="upload-btn" id="uploadBtn" onclick="uploadFile()">
+          Upload Document
+        </button>
+
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <p>Processing document...</p>
+        </div>
+
+        <div class="supported-formats">
+          <h3>📋 Supported File Formats</h3>
+          <div class="format-list">
+            <span class="format-tag">PDF</span>
+            <span class="format-tag">DOCX</span>
+            <span class="format-tag">TXT</span>
+            <span class="format-tag">CSV</span>
+          </div>
+        </div>
+
+        <div class="navigation">
+          <a href="/dashboard" class="nav-btn">← Back to Dashboard</a>
+          <a href="/" class="nav-btn">🏠 Home</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Check if user is logged in and is admin
+      document.addEventListener("DOMContentLoaded", function () {
+        checkAuth();
+        setupFileUpload();
+      });
+
+      function checkAuth() {
+        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+        
+        if (!user.id || user.role !== "admin") {
+          showMessage("Access denied. Admin privileges required.", "error");
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+          return;
+        }
+
+        // Display user info
+        document.getElementById("username").textContent = `👤 ${user.username}`;
+        document.getElementById("organization").textContent = `🏢 ${user.organization_name || "Unknown Organization"}`;
+      }
+
+      function setupFileUpload() {
+        const uploadArea = document.getElementById("uploadArea");
+        const fileInput = document.getElementById("fileInput");
+
+        // Click to select file
+        uploadArea.addEventListener("click", () => {
+          fileInput.click();
+        });
+
+        // File selection
+        fileInput.addEventListener("change", handleFileSelect);
+
+        // Drag and drop
+        uploadArea.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          uploadArea.classList.add("dragover");
+        });
+
+        uploadArea.addEventListener("dragleave", () => {
+          uploadArea.classList.remove("dragover");
+        });
+
+        uploadArea.addEventListener("drop", (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove("dragover");
+          
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect();
+          }
+        });
+      }
+
+      function handleFileSelect() {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+        
+        if (file) {
+          // Show file info
+          document.getElementById("fileName").textContent = file.name;
+          document.getElementById("fileSize").textContent = formatFileSize(file.size);
+          document.getElementById("fileInfo").classList.add("show");
+          document.getElementById("uploadBtn").classList.add("show");
+        }
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+
+      async function uploadFile() {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+        
+        if (!file) {
+          showMessage("Please select a file first.", "error");
+          return;
+        }
+
+        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+        
+        if (!user.id || !user.organization_id) {
+          showMessage("User session expired. Please login again.", "error");
+          return;
+        }
+
+        // Show loading state
+        const uploadBtn = document.getElementById("uploadBtn");
+        const loading = document.getElementById("loading");
+        uploadBtn.disabled = true;
+        loading.style.display = "block";
+
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("org_id", user.organization_id);
+          formData.append("user_id", user.id);
+
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            showMessage(
+              `✅ File uploaded successfully! Document ID: ${data.document_id}, Chunks: ${data.chunks}`,
+              "success"
+            );
+            
+            // Reset form
+            fileInput.value = "";
+            document.getElementById("fileInfo").classList.remove("show");
+            document.getElementById("uploadBtn").classList.remove("show");
+            
+            // Auto-hide success message
+            setTimeout(() => {
+              document.getElementById("message").style.display = "none";
+            }, 5000);
+          } else {
+            showMessage(data.detail || "Upload failed. Please try again.", "error");
+          }
+        } catch (error) {
+          console.error("Upload error:", error);
+          showMessage("An error occurred during upload. Please try again.", "error");
+        } finally {
+          // Hide loading state
+          uploadBtn.disabled = false;
+          loading.style.display = "none";
+        }
+      }
+
+      function showMessage(message, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = message;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = "block";
+      }
+
+      function logout() {
+        sessionStorage.removeItem("user");
+        window.location.href = "/login";
+      }
+    </script>
+  </body>
+</html>

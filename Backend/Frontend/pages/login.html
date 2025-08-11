@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - RAG ChatBot</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .login-container {
+        background: white;
+        padding: 3rem;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 450px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .login-container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+      }
+
+      .logo {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .logo h1 {
+        color: #667eea;
+        font-size: 2rem;
+        font-weight: 700;
+      }
+
+      .logo p {
+        color: #666;
+        margin-top: 0.5rem;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #333;
+        font-weight: 600;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e1e5e9;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+        background: #f8f9fa;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+      }
+
+      .role-selection {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .role-option {
+        flex: 1;
+        text-align: center;
+      }
+
+      .role-option input[type="radio"] {
+        display: none;
+      }
+
+      .role-option label {
+        display: block;
+        padding: 1rem;
+        border: 2px solid #e1e5e9;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+      }
+
+      .role-option input[type="radio"]:checked + label {
+        border-color: #667eea;
+        background: #667eea;
+        color: white;
+      }
+
+      .role-option label:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+      }
+
+      .login-btn {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+        margin-bottom: 1rem;
+      }
+
+      .login-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .login-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .message {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        text-align: center;
+        font-weight: 500;
+      }
+
+      .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .links {
+        text-align: center;
+        margin-top: 1.5rem;
+      }
+
+      .links a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        margin: 0 0.5rem;
+      }
+
+      .links a:hover {
+        text-decoration: underline;
+      }
+
+      .back-home {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .back-home:hover {
+        text-decoration: underline;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        margin-top: 1rem;
+      }
+
+      .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 480px) {
+        .login-container {
+          padding: 2rem;
+        }
+
+        .role-selection {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <a href="/" class="back-home"> ← Back to Home </a>
+
+      <div class="logo">
+        <h1>RAG ChatBot</h1>
+        <p>Sign in to your account</p>
+      </div>
+
+      <div id="message"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+
+        <div class="form-group">
+          <label>Select Your Role</label>
+          <div class="role-selection">
+            <div class="role-option">
+              <input
+                type="radio"
+                id="role-admin"
+                name="role"
+                value="admin"
+                required
+              />
+              <label for="role-admin">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem">👨‍💼</div>
+                Admin
+              </label>
+            </div>
+            <div class="role-option">
+              <input
+                type="radio"
+                id="role-user"
+                name="role"
+                value="user"
+                required
+              />
+              <label for="role-user">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem">👤</div>
+                User
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+      </form>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Signing in...</p>
+      </div>
+
+      <div class="links">
+        <a href="/admin-register">Register as Admin</a>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const username = document.getElementById("username").value;
+          const password = document.getElementById("password").value;
+          const role = document.querySelector(
+            'input[name="role"]:checked'
+          )?.value;
+
+          if (!role) {
+            showMessage("Please select a role", "error");
+            return;
+          }
+
+          // Show loading state
+          const loginBtn = document.getElementById("loginBtn");
+          const loading = document.getElementById("loading");
+          loginBtn.disabled = true;
+          loading.style.display = "block";
+
+          try {
+            let endpoint;
+            let requestData;
+
+            if (role === "admin") {
+              // Use admin login endpoint
+              endpoint = "/admin/login";
+              requestData = `username=${encodeURIComponent(
+                username
+              )}&password=${encodeURIComponent(password)}`;
+            } else {
+              // Use regular user login endpoint
+              endpoint = "/admin/user/login";
+              requestData = JSON.stringify({
+                username: username,
+                password: password,
+                role: role,
+              });
+            }
+
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  role === "admin"
+                    ? "application/x-www-form-urlencoded"
+                    : "application/json",
+              },
+              body: requestData,
+            });
+
+            const data = await response.json();
+
+            // Debug logging
+            console.log("Login response:", response.status, data);
+
+            if (response.ok) {
+              showMessage(`Welcome back, ${data.username}!`, "success");
+
+              // Store user info in session storage
+              sessionStorage.setItem(
+                "user",
+                JSON.stringify({
+                  id: data.user_id,
+                  username: data.username,
+                  role: data.role,
+                  organization_id: data.organization_id,
+                  organization_name: data.organization_name,
+                })
+              );
+
+              // Redirect based on role
+              setTimeout(() => {
+                if (data.role === "admin") {
+                  window.location.href = "/dashboard"; // Admin goes to dashboard
+                } else {
+                  window.location.href = "/dashboard"; // Users go to dashboard
+                }
+              }, 1500);
+            } else {
+              // Handle different error response formats
+              let errorMessage = "Login failed. Please check your credentials.";
+              if (data.detail) {
+                errorMessage = data.detail;
+              } else if (data.message) {
+                errorMessage = data.message;
+              } else if (typeof data === "string") {
+                errorMessage = data;
+              } else if (Array.isArray(data)) {
+                errorMessage = data.join(", ");
+              }
+              showMessage(errorMessage, "error");
+            }
+          } catch (error) {
+            console.error("Login error:", error);
+            showMessage(
+              "An error occurred during login. Please try again.",
+              "error"
+            );
+          } finally {
+            // Hide loading state
+            loginBtn.disabled = false;
+            loading.style.display = "none";
+          }
+        });
+
+      function showMessage(message, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = message;
+        messageDiv.className = `message ${type}`;
+
+        // Auto-hide success messages
+        if (type === "success") {
+          setTimeout(() => {
+            messageDiv.style.display = "none";
+          }, 3000);
+        }
+      }
+
+      // Add some interactive effects
+      document
+        .querySelectorAll(".form-group input, .form-group select")
+        .forEach((input) => {
+          input.addEventListener("focus", function () {
+            this.parentElement.style.transform = "translateY(-2px)";
+          });
+
+          input.addEventListener("blur", function () {
+            this.parentElement.style.transform = "translateY(0)";
+          });
+        });
+    </script>
+  </body>
+</html>

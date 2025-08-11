@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - RAG ChatBot</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: white;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      .welcome-message {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      .user-info {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+      }
+
+      .user-info h2 {
+        margin-bottom: 1rem;
+        color: #fff;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+
+      .info-item {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 10px;
+      }
+
+      .info-label {
+        font-weight: bold;
+        color: #ddd;
+        margin-bottom: 0.5rem;
+      }
+
+      .info-value {
+        color: #fff;
+      }
+
+      /* Chat Interface Styles */
+      .chat-section {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        display: none; /* Hidden by default, shown only for users */
+      }
+
+      .chat-section h2 {
+        margin-bottom: 1rem;
+        color: #fff;
+        text-align: center;
+      }
+
+      .chat-container {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        padding: 1rem;
+        height: 400px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .message-bubble {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 15px;
+        max-width: 80%;
+        word-wrap: break-word;
+      }
+
+      .message-bubble.user {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        margin-left: auto;
+        color: white;
+      }
+
+      .message-bubble.assistant {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .message-bubble .timestamp {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        margin-top: 0.5rem;
+      }
+
+      .chat-input-container {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .chat-input {
+        flex: 1;
+        padding: 1rem;
+        border: none;
+        border-radius: 25px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 1rem;
+      }
+
+      .chat-input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .chat-input:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .send-btn {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.3s ease;
+      }
+
+      .send-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .send-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .loading-indicator {
+        text-align: center;
+        padding: 1rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-style: italic;
+      }
+
+      .actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .logout-btn {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      }
+
+      .admin-btn {
+        background: linear-gradient(45deg, #28a745, #20c997);
+      }
+
+      .message {
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        text-align: center;
+      }
+
+      .message.success {
+        background: rgba(46, 204, 113, 0.2);
+        border: 1px solid #2ecc71;
+      }
+
+      .message.error {
+        background: rgba(231, 76, 60, 0.2);
+        border: 1px solid #e74c3c;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1 class="welcome-message">Welcome to Your Dashboard</h1>
+        <p>You have successfully logged in!</p>
+      </div>
+
+      <div id="message" class="message" style="display: none"></div>
+
+      <div class="user-info">
+        <h2>User Information</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Username:</div>
+            <div class="info-value" id="username">Loading...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Role:</div>
+            <div class="info-value" id="role">Loading...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Organization:</div>
+            <div class="info-value" id="organization">Loading...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">User ID:</div>
+            <div class="info-value" id="userid">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Interface for Users -->
+      <div class="chat-section" id="chatSection">
+        <h2>💬 Chat with AI Assistant</h2>
+        <p style="text-align: center; margin-bottom: 1rem; opacity: 0.8">
+          Ask questions about your organization's documents and get intelligent
+          answers
+        </p>
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="message-bubble assistant">
+              <div>
+                Hello! I'm your AI assistant. I can help you find information
+                from your organization's documents. What would you like to know?
+              </div>
+              <div class="timestamp">Just now</div>
+            </div>
+          </div>
+          <div class="chat-input-container">
+            <input
+              type="text"
+              class="chat-input"
+              id="chatInput"
+              placeholder="Type your question here..."
+              onkeypress="handleKeyPress(event)"
+            />
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" onclick="window.location.href='/'">
+          Go to Welcome Page
+        </button>
+        <button class="btn" onclick="window.location.href='/login'">
+          Back to Login
+        </button>
+        <button
+          class="btn admin-btn"
+          id="adminActions"
+          onclick="window.location.href='/admin-upload'"
+          style="display: none"
+        >
+          📁 Upload Files
+        </button>
+        <button
+          class="btn admin-btn"
+          id="adminUserActions"
+          onclick="window.location.href='/admin-users'"
+          style="display: none"
+        >
+          👥 Manage Users
+        </button>
+        <button class="btn logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <script>
+      // Load user information from session storage
+      function loadUserInfo() {
+        const userStr = sessionStorage.getItem("user");
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            document.getElementById("username").textContent =
+              user.username || "N/A";
+            document.getElementById("role").textContent = user.role || "N/A";
+            document.getElementById("organization").textContent =
+              user.organization_name || "N/A";
+            document.getElementById("userid").textContent = user.id || "N/A";
+
+            // Show admin actions if user is admin
+            if (user.role === "admin") {
+              document.getElementById("adminActions").style.display =
+                "inline-block";
+              document.getElementById("adminUserActions").style.display =
+                "inline-block";
+            } else {
+              // Show chat interface for regular users
+              document.getElementById("chatSection").style.display = "block";
+            }
+
+            showMessage(
+              "Welcome back! You are successfully logged in.",
+              "success"
+            );
+          } catch (error) {
+            console.error("Error parsing user data:", error);
+            showMessage("Error loading user information.", "error");
+          }
+        } else {
+          showMessage(
+            "No user information found. Please log in again.",
+            "error"
+          );
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        }
+      }
+
+      // Chat functionality
+      function handleKeyPress(event) {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      }
+
+      function addMessage(content, role, timestamp = new Date()) {
+        const chatMessages = document.getElementById("chatMessages");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message-bubble ${role}`;
+
+        const timeStr = timestamp.toLocaleTimeString();
+        messageDiv.innerHTML = `
+          <div>${content}</div>
+          <div class="timestamp">${timeStr}</div>
+        `;
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      async function sendMessage() {
+        const input = document.getElementById("chatInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const question = input.value.trim();
+
+        if (!question) return;
+
+        // Get user info from session
+        const userStr = sessionStorage.getItem("user");
+        if (!userStr) {
+          showMessage("Session expired. Please log in again.", "error");
+          return;
+        }
+
+        const user = JSON.parse(userStr);
+        const orgId = user.organization_id;
+        const userId = user.id;
+
+        if (!orgId || !userId) {
+          showMessage(
+            "Missing user information. Please log in again.",
+            "error"
+          );
+          return;
+        }
+
+        // Add user message to chat
+        addMessage(question, "user");
+
+        // Clear input and disable send button
+        input.value = "";
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Sending...";
+
+        // Add loading indicator
+        const loadingDiv = document.createElement("div");
+        loadingDiv.className = "loading-indicator";
+        loadingDiv.textContent = "AI is thinking...";
+        document.getElementById("chatMessages").appendChild(loadingDiv);
+
+        try {
+          const response = await fetch("/ask", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              org_id: orgId,
+              user_id: userId,
+              question: question,
+            }),
+          });
+
+          const data = await response.json();
+
+          // Remove loading indicator
+          loadingDiv.remove();
+
+          if (response.ok) {
+            addMessage(data.answer, "assistant");
+          } else {
+            addMessage(
+              `Error: ${data.detail || "Failed to get response"}`,
+              "assistant"
+            );
+          }
+        } catch (error) {
+          console.error("Error sending message:", error);
+          loadingDiv.remove();
+          addMessage(
+            "Sorry, I encountered an error. Please try again.",
+            "assistant"
+          );
+        } finally {
+          // Re-enable send button
+          sendBtn.disabled = false;
+          sendBtn.textContent = "Send";
+        }
+      }
+
+      function logout() {
+        sessionStorage.removeItem("user");
+        showMessage("Logging out...", "success");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1000);
+      }
+
+      function showMessage(message, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = message;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = "block";
+      }
+
+      // Load user info when page loads
+      document.addEventListener("DOMContentLoaded", loadUserInfo);
+    </script>
+  </body>
+</html>

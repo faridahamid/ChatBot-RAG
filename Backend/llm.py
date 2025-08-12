@@ -2,7 +2,7 @@
 import os
 import google.generativeai as genai
 
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")  # fast & cheap; use -pro for higher quality
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-1.5-flash") 
 
 def get_gemini():
     api_key = os.getenv("GEMINI_API_KEY")

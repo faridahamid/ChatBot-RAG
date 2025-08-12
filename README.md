@@ -72,7 +72,7 @@ Users interact with the chatbot through **text** (and later voice), receiving an
 | LLM Provider        | Gemini |
 | Framework           | LangChain |
 | File Processing     | PyMuPDF, python-docx, pandas |
-|
+
 
 
 

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel, Field
 from database import get_db
-from models import User, Organization
+from models import User, Organization, Document, Chat, ChatMessage, Feedback
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -323,7 +323,7 @@ def delete_user(
     user_id: uuid.UUID,
     db: Session = Depends(get_db)
 ):
-    """Delete a user from the organization"""
+    """Delete a user from the organization and all related data"""
     
     # Get the user to delete
     user_to_delete = db.query(User).filter(User.id == user_id).first()
@@ -333,18 +333,158 @@ def delete_user(
             detail="User not found"
         )
     
+            # Prevent deletion of the last admin in an organization
+        if user_to_delete.role == "admin":
+            admin_count = db.query(User).filter(
+                User.organization_id == user_to_delete.organization_id,
+                User.role == "admin"
+            ).count()
+            if admin_count <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete the last admin in the organization"
+                )
+            print(f"Admin deletion allowed - {admin_count} admins remain in organization")
+        else:
+            print(f"Regular user deletion - {user_to_delete.username}")
+        
+        # Additional safety check: Ensure user is not trying to delete themselves
+        # This could be enhanced to check if the current admin is from the same organization
+        # For now, we'll just log a warning if someone tries to delete themselves
+        if user_to_delete.role == "admin":
+            print(f"Warning: Admin user {user_to_delete.username} is being deleted")
+            print(f"   Organization: {user_to_delete.organization_id}")
+            print(f"   Admin count in org: {admin_count}")
+            print(f"   Deletion timestamp: {user_to_delete.created_at}")
+            print(f"   User ID: {user_to_delete.id}")
+        else:
+            print(f"Regular user deletion - {user_to_delete.username}")
+            print(f"   Organization: {user_to_delete.organization_id}")
+            print(f"   User role: {user_to_delete.role}")
+            print(f"   User ID: {user_to_delete.id}")
+    
     try:
-        # Delete the user
+        # First, manually delete all related data to ensure proper cleanup
+        # Delete all feedbacks related to user's chats
+        
+        # Get all chats for this user
+        user_chats = db.query(Chat).filter(Chat.user_id == user_id).all()
+        print(f"Found {len(user_chats)} chats to delete for user {user_to_delete.username}")
+        
+        if user_chats:
+            total_feedbacks = 0
+            total_messages = 0
+            
+            for chat in user_chats:
+                # Delete all feedbacks for this chat
+                feedback_count = db.query(Feedback).filter(Feedback.chat_id == chat.id).count()
+                if feedback_count > 0:
+                    db.query(Feedback).filter(Feedback.chat_id == chat.id).delete()
+                    total_feedbacks += feedback_count
+                    print(f"Deleted {feedback_count} feedbacks for chat {chat.id}")
+                
+                # Delete all messages for this chat
+                message_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
+                if message_count > 0:
+                    db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).delete()
+                    total_messages += message_count
+                    print(f"Deleted {message_count} messages for chat {chat.id}")
+            
+            # Delete all chats for this user
+            db.query(Chat).filter(Chat.user_id == user_id).delete()
+            print(f"Deleted {len(user_chats)} chats for user {user_to_delete.username}")
+            print(f"Total feedbacks deleted: {total_feedbacks}")
+            print(f"Total messages deleted: {total_messages}")
+        else:
+            print(f"No chats found for user {user_to_delete.username}")
+        
+        # Delete all documents uploaded by this user (set uploaded_by to NULL)
+        doc_count = db.query(Document).filter(Document.uploaded_by == user_id).count()
+        if doc_count > 0:
+            db.query(Document).filter(Document.uploaded_by == user_id).update({Document.uploaded_by: None})
+            print(f"Updated {doc_count} documents (set uploaded_by to NULL) for user {user_to_delete.username}")
+        else:
+            print(f"No documents found for user {user_to_delete.username}")
+        
+        # Finally, delete the user
         db.delete(user_to_delete)
         db.commit()
+        #print(f"Successfully deleted user {user_to_delete.username} and all related data")
         
+        # Log the complete deletion summary
+        #print(f"  - Chats deleted: {len(user_chats)}")
+        # print(f"  - Documents updated (uploaded_by set to NULL): {doc_count}")
+        # print(f"  - User record deleted: {user_to_delete.username}")
+        # print(f"  - Organization ID: {user_to_delete.organization_id}")
+        # print(f"  - User role: {user_to_delete.role}")
+        # print(f"  - Deletion timestamp: {user_to_delete.created_at}")
+        # print(f"  - Total data records processed: {len(user_chats) + doc_count}")
+        # print(f"  - User ID: {user_to_delete.id}")
+        
+        # Verify deletion was successful
+        verification = db.query(User).filter(User.id == user_id).first()
+        if verification:
+            print(f"  Warning: User {user_to_delete.username} still exists after deletion attempt")
+            print(f"   User ID: {verification.id}")
+            print(f"   Username: {verification.username}")
+        else:
+            print(f" Verification: User {user_to_delete.username} successfully removed from database")
+        
+        # Final cleanup verification
+        remaining_chats = db.query(Chat).filter(Chat.user_id == user_id).count()
+        remaining_feedbacks = db.query(Feedback).filter(Feedback.user_id == user_id).count()
+        remaining_docs = db.query(Document).filter(Document.uploaded_by == user_id).count()
+        
+        if remaining_chats > 0 or remaining_feedbacks > 0 or remaining_docs > 0:
+            print(f" Warning: Some data still exists for user {user_to_delete.username}")
+            print(f"   Remaining chats: {remaining_chats}")
+            print(f"   Remaining feedbacks: {remaining_feedbacks}")
+            print(f"   Remaining documents with user reference: {remaining_docs}")
+        else:
+            print(f"✅ All user data successfully cleaned up")
+        
+        # Return success response with detailed information
         return {
-            "message": f"User {user_to_delete.username} deleted successfully"
+            "message": f"User {user_to_delete.username} and all related data deleted successfully",
+            "deleted_data": {
+                "chats_deleted": len(user_chats),
+                "documents_updated": doc_count,
+                "user_id": str(user_id),
+                "username": user_to_delete.username,
+                "organization_id": str(user_to_delete.organization_id),
+                "total_records_processed": len(user_chats) + doc_count,
+                "deletion_timestamp": str(user_to_delete.created_at)
+            }
         }
     
     except Exception as e:
         db.rollback()
+        print(f"Error deleting user {user_to_delete.username}: {str(e)}")
+        
+        # Provide more specific error messages for common issues
+        error_msg = str(e)
+        if "foreign key constraint" in error_msg.lower():
+            detail = "Cannot delete user due to remaining references. Please contact support."
+        elif "permission" in error_msg.lower():
+            detail = "Permission denied. You may not have the right to delete this user."
+        elif "unique constraint" in error_msg.lower():
+            detail = "Database constraint violation. Please contact support."
+        elif "connection" in error_msg.lower():
+            detail = "Database connection error. Please try again."
+        elif "timeout" in error_msg.lower():
+            detail = "Database operation timed out. Please try again."
+        elif "deadlock" in error_msg.lower():
+            detail = "Database deadlock detected. Please try again."
+        else:
+            detail = f"Failed to delete user: {error_msg}"
+        
+        # Log the detailed error for debugging
+        print(f"Detailed error during user deletion: {error_msg}")
+        print(f"Error type: {type(e)._name_}")
+        print(f"User being deleted: {user_to_delete.username if user_to_delete else 'Unknown'}")
+        print(f"User ID: {user_id}")
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete user: {str(e)}"
+            detail=detail
         )

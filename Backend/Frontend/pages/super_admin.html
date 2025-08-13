@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Super Admin Dashboard - RAG ChatBot</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: white;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      .welcome-message {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #ffd700;
+      }
+
+      .user-info {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+
+      .user-info h2 {
+        margin-bottom: 1rem;
+        color: #ffd700;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+
+      .info-item {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 10px;
+      }
+
+      .info-label {
+        font-weight: bold;
+        color: #ddd;
+        margin-bottom: 0.5rem;
+      }
+
+      .info-value {
+        color: #fff;
+      }
+
+      .actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 2rem;
+      }
+
+      .btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn.primary {
+        background: linear-gradient(45deg, #28a745, #20c997);
+      }
+
+      .btn.danger {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      }
+
+      .btn.logout {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+      }
+
+      .organizations-section {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+      }
+
+      .organizations-section h2 {
+        margin-bottom: 1.5rem;
+        color: #ffd700;
+        text-align: center;
+      }
+
+      .organizations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .org-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1.5rem;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .org-card:hover {
+        border-color: #ffd700;
+        transform: translateY(-5px);
+      }
+
+      .org-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .org-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #ffd700;
+      }
+
+      .org-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .org-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+      }
+
+      .org-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .org-btn.danger {
+        background: rgba(220, 53, 69, 0.8);
+      }
+
+      .org-btn.danger:hover {
+        background: rgba(220, 53, 69, 1);
+      }
+
+      .org-description {
+        color: #ddd;
+        margin-bottom: 1rem;
+        font-style: italic;
+      }
+
+      .org-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .stat-item {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.8rem;
+        border-radius: 10px;
+      }
+
+      .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #ffd700;
+      }
+
+      .stat-label {
+        font-size: 0.9rem;
+        color: #ddd;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+      }
+
+      .modal-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: 5% auto;
+        padding: 2rem;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 600px;
+        color: white;
+        position: relative;
+      }
+
+      .close {
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        font-size: 2rem;
+        cursor: pointer;
+        color: #ddd;
+      }
+
+      .close:hover {
+        color: white;
+      }
+
+      .modal h2 {
+        margin-bottom: 1.5rem;
+        color: #ffd700;
+        text-align: center;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .form-group input,
+      .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        font-size: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+
+      .form-group input:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: #ffd700;
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .form-group input::placeholder,
+      .form-group textarea::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+      }
+
+      .users-list {
+        max-height: 400px;
+        overflow-y: auto;
+        margin-top: 1rem;
+      }
+
+      .user-item {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .user-info {
+        flex: 1;
+      }
+
+      .user-username {
+        font-weight: bold;
+        color: #ffd700;
+      }
+
+      .user-role {
+        color: #ddd;
+        font-size: 0.9rem;
+      }
+
+      .user-created {
+        color: #aaa;
+        font-size: 0.8rem;
+      }
+
+      .message {
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        text-align: center;
+        display: none;
+      }
+
+      .message.success {
+        background: rgba(46, 204, 113, 0.2);
+        border: 1px solid #2ecc71;
+      }
+
+      .message.error {
+        background: rgba(231, 76, 60, 0.2);
+        border: 1px solid #e74c3c;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 2rem;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .spinner {
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid #ffd700;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .organizations-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .modal-content {
+          width: 95%;
+          margin: 10% auto;
+          padding: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1 class="welcome-message">👑 Super Admin Dashboard</h1>
+        <p>Manage all organizations and users across the platform</p>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <div class="user-info">
+        <h2>Super Admin Information</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Username:</div>
+            <div class="info-value" id="username">Loading...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Role:</div>
+            <div class="info-value" id="role">Loading...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">User ID:</div>
+            <div class="info-value" id="userid">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" onclick="showCreateOrgModal()">
+          ➕ Create Organization
+        </button>
+        <button class="btn" onclick="refreshOrganizations()">🔄 Refresh</button>
+        <button class="btn logout" onclick="logout()">🚪 Logout</button>
+      </div>
+
+      <div class="organizations-section">
+        <h2>🏢 Organizations</h2>
+        <div id="organizationsGrid" class="organizations-grid">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading organizations...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Organization Modal -->
+    <div id="createOrgModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('createOrgModal')"
+          >&times;</span
+        >
+        <h2>Create New Organization</h2>
+        <form id="createOrgForm">
+          <div class="form-group">
+            <label for="orgName">Organization Name</label>
+            <input
+              type="text"
+              id="orgName"
+              name="orgName"
+              required
+              placeholder="Enter organization name"
+            />
+          </div>
+          <div class="form-group">
+            <label for="orgDescription">Description</label>
+            <textarea
+              id="orgDescription"
+              name="orgDescription"
+              rows="3"
+              placeholder="Enter organization description"
+            ></textarea>
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('createOrgModal')"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn primary">
+              Create Organization
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Organization Details Modal -->
+    <div id="orgDetailsModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('orgDetailsModal')"
+          >&times;</span
+        >
+        <h2 id="orgDetailsTitle">Organization Details</h2>
+        <div id="orgDetailsContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading organization details...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Admin Modal -->
+    <div id="addAdminModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('addAdminModal')">&times;</span>
+        <h2>Add Admin to Organization</h2>
+        <form id="addAdminForm">
+          <div class="form-group">
+            <label for="adminUsername">Username</label>
+            <input
+              type="text"
+              id="adminUsername"
+              name="adminUsername"
+              required
+              placeholder="Enter username"
+            />
+          </div>
+          <div class="form-group">
+            <label for="adminPassword">Password</label>
+            <input
+              type="password"
+              id="adminPassword"
+              name="adminPassword"
+              required
+              placeholder="Enter password"
+            />
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('addAdminModal')"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn primary">Add Admin</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      let currentOrgId = null;
+      let organizations = [];
+
+      // Load user information from session storage
+      function loadUserInfo() {
+        const userStr = sessionStorage.getItem("user");
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            if (user.role !== "super-admin") {
+              showMessage("Access denied. Super-admin privileges required.", "error");
+              setTimeout(() => {
+                window.location.href = "/login";
+              }, 2000);
+              return;
+            }
+
+            document.getElementById("username").textContent = user.username || "N/A";
+            document.getElementById("role").textContent = user.role || "N/A";
+            document.getElementById("userid").textContent = user.id || "N/A";
+
+            // Load organizations
+            loadOrganizations();
+          } catch (error) {
+            console.error("Error parsing user data:", error);
+            showMessage("Error loading user information.", "error");
+          }
+        } else {
+          showMessage("No user information found. Please log in again.", "error");
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        }
+      }
+
+      // Load organizations
+      async function loadOrganizations() {
+        try {
+          const response = await fetch("/admin/super-admin/organizations");
+          if (response.ok) {
+            organizations = await response.json();
+            displayOrganizations();
+          } else {
+            throw new Error("Failed to load organizations");
+          }
+        } catch (error) {
+          console.error("Error loading organizations:", error);
+          showMessage("Failed to load organizations.", "error");
+        }
+      }
+
+      // Display organizations
+      function displayOrganizations() {
+        const grid = document.getElementById("organizationsGrid");
+
+        if (organizations.length === 0) {
+          grid.innerHTML = '<div class="loading"><p>No organizations found. Create your first organization!</p></div>';
+          return;
+        }
+
+        grid.innerHTML = organizations.map(org => `
+          <div class="org-card" onclick="showOrgDetails('${org.id}')">
+            <div class="org-header">
+              <div class="org-name">${org.name}</div>
+              <div class="org-actions">
+                <button class="org-btn" onclick="event.stopPropagation(); showAddAdminModal('${org.id}')">
+                  ➕ Add Admin
+                </button>
+                <button class="org-btn danger" onclick="event.stopPropagation(); deleteOrganization('${org.id}')">
+                  🗑 Delete
+                </button>
+              </div>
+            </div>
+            <div class="org-description">${org.description || 'No description'}</div>
+            <div class="org-stats">
+              <div class="stat-item">
+                <div class="stat-number">${org.admin_count}</div>
+                <div class="stat-label">Admins</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">${org.user_count}</div>
+                <div class="stat-label">Users</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Show organization details
+      async function showOrgDetails(orgId) {
+        currentOrgId = orgId;
+        const org = organizations.find(o => o.id === orgId);
+        if (!org) return;
+
+        document.getElementById("orgDetailsTitle").textContent = `${org.name} - Details`;
+        document.getElementById("orgDetailsContent").innerHTML = `
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading organization details...</p>
+          </div>
+        `;
+
+        showModal('orgDetailsModal');
+
+        try {
+          const response = await fetch(`/admin/super-admin/organizations/${orgId}/users`);
+          if (response.ok) {
+            const users = await response.json();
+            displayOrgUsers(users, org);
+          } else {
+            throw new Error("Failed to load users");
+          }
+        } catch (error) {
+          console.error("Error loading users:", error);
+          document.getElementById("orgDetailsContent").innerHTML = `
+            <div class="message error">Failed to load organization users.</div>
+          `;
+        }
+      }
+
+      // Display organization users
+      function displayOrgUsers(users, org) {
+        const content = document.getElementById("orgDetailsContent");
+
+        content.innerHTML = `
+          <div class="info-grid" style="margin-bottom: 2rem;">
+            <div class="info-item">
+              <div class="info-label">Organization Name</div>
+              <div class="info-value">${org.name}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Description</div>
+              <div class="info-value">${org.description || 'No description'}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Total Users</div>
+              <div class="info-value">${users.length}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Admins</div>
+              <div class="info-value">${users.filter(u => u.role === 'admin').length}</div>
+            </div>
+          </div>
+
+          <h3 style="color: #ffd700; margin-bottom: 1rem;">Users in Organization</h3>
+          <div class="users-list">
+            ${users.length === 0 ? '<p style="text-align: center; color: #ddd;">No users found in this organization.</p>' :
+              users.map(user => `
+                <div class="user-item">
+                  <div class="user-info">
+                    <div class="user-username">${user.username}</div>
+                    <div class="user-role">Role: ${user.role}</div>
+                    <div class="user-created">Created: ${new Date(user.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <button class="org-btn danger" onclick="deleteUser('${user.id}')">
+                    🗑 Delete
+                  </button>
+                </div>
+              `).join('')
+            }
+          </div>
+        `;
+      }
+
+      // Show add admin modal
+      function showAddAdminModal(orgId) {
+        currentOrgId = orgId;
+        showModal('addAdminModal');
+      }
+
+      // Create organization
+      async function createOrganization(formData) {
+        try {
+          const response = await fetch("/admin/super-admin/organizations", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: formData.get('orgName'),
+              description: formData.get('orgDescription')
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            showMessage(`Organization "${result.name}" created successfully!`, "success");
+            closeModal('createOrgModal');
+            document.getElementById('createOrgForm').reset();
+            loadOrganizations();
+          } else {
+            const error = await response.json();
+            throw new Error(error.detail || "Failed to create organization");
+          }
+        } catch (error) {
+          console.error("Error creating organization:", error);
+          showMessage(error.message, "error");
+        }
+      }
+
+      // Add admin to organization
+      async function addAdminToOrganization(formData) {
+        try {
+          const response = await fetch(`/admin/super-admin/organizations/${currentOrgId}/admins`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              username: formData.get('adminUsername'),
+              password: formData.get('adminPassword'),
+              role: "admin",
+              organization_id: currentOrgId
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            showMessage(`Admin "${result.username}" added successfully!`, "success");
+            closeModal('addAdminModal');
+            document.getElementById('addAdminForm').reset();
+            // Refresh organization details if modal is open
+            if (document.getElementById('orgDetailsModal').style.display === 'block') {
+              showOrgDetails(currentOrgId);
+            }
+            loadOrganizations();
+          } else {
+            const error = await response.json();
+            throw new Error(error.detail || "Failed to add admin");
+          }
+        } catch (error) {
+          console.error("Error adding admin:", error);
+          showMessage(error.message, "error");
+        }
+      }
+
+      // Delete organization
+      async function deleteOrganization(orgId) {
+        if (!confirm("Are you sure you want to delete this organization? This action cannot be undone and will delete all associated data.")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/admin/super-admin/organizations/${orgId}`, {
+            method: "DELETE",
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            showMessage(result.message, "success");
+            loadOrganizations();
+          } else {
+            const error = await response.json();
+            throw new Error(error.detail || "Failed to delete organization");
+          }
+        } catch (error) {
+          console.error("Error deleting organization:", error);
+          showMessage(error.message, "error");
+        }
+      }
+
+      // Delete user
+      async function deleteUser(userId) {
+        if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/admin/super-admin/users/${userId}`, {
+            method: "DELETE",
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            showMessage(result.message, "success");
+            // Refresh organization details
+            showOrgDetails(currentOrgId);
+            loadOrganizations();
+          } else {
+            const error = await response.json();
+            throw new Error(error.detail || "Failed to delete user");
+          }
+        } catch (error) {
+          console.error("Error deleting user:", error);
+          showMessage(error.message, "error");
+        }
+      }
+
+      // Modal functions
+      function showModal(modalId) {
+        document.getElementById(modalId).style.display = "block";
+      }
+
+      function closeModal(modalId) {
+        document.getElementById(modalId).style.display = "none";
+      }
+
+      function showCreateOrgModal() {
+        showModal('createOrgModal');
+      }
+
+      // Refresh organizations
+      function refreshOrganizations() {
+        loadOrganizations();
+        showMessage("Organizations refreshed!", "success");
+      }
+
+      // Logout
+      function logout() {
+        sessionStorage.removeItem("user");
+        showMessage("Logging out...", "success");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1000);
+      }
+
+      // Show message
+      function showMessage(message, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = message;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = "block";
+
+        // Auto-hide success messages
+        if (type === "success") {
+          setTimeout(() => {
+            messageDiv.style.display = "none";
+          }, 3000);
+        }
+      }
+
+      // Event listeners
+      document.addEventListener("DOMContentLoaded", function() {
+        loadUserInfo();
+
+        // Create organization form
+        document.getElementById('createOrgForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          createOrganization(formData);
+        });
+
+        // Add admin form
+        document.getElementById('addAdminForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          addAdminToOrganization(formData);
+        });
+      });
+
+      // Close modal when clicking outside
+      window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+          event.target.style.display = "none";
+        }
+      };
+    </script>
+  </body>
+</html>

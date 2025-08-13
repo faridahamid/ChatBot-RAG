@@ -263,6 +263,19 @@
             <div class="role-option">
               <input
                 type="radio"
+                id="role-super-admin"
+                name="role"
+                value="super-admin"
+                required
+              />
+              <label for="role-super-admin">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem">👑</div>
+                Super Admin
+              </label>
+            </div>
+            <div class="role-option">
+              <input
+                type="radio"
                 id="role-admin"
                 name="role"
                 value="admin"
@@ -297,9 +310,7 @@
         <p>Signing in...</p>
       </div>
 
-      <div class="links">
-        <a href="/admin-register">Register as Admin</a>
-      </div>
+     
     </div>
 
     <script>
@@ -329,7 +340,14 @@
             let endpoint;
             let requestData;
 
-            if (role === "admin") {
+            if (role === "super-admin") {
+              // Use super-admin login endpoint
+              endpoint = "/admin/super-admin/login";
+              requestData = JSON.stringify({
+                username: username,
+                password: password,
+              });
+            } else if (role === "admin") {
               // Use admin login endpoint
               endpoint = "/admin/login";
               requestData = `username=${encodeURIComponent(
@@ -349,7 +367,9 @@
               method: "POST",
               headers: {
                 "Content-Type":
-                  role === "admin"
+                  role === "super-admin"
+                    ? "application/json"
+                    : role === "admin"
                     ? "application/x-www-form-urlencoded"
                     : "application/json",
               },
@@ -378,7 +398,9 @@
 
               // Redirect based on role
               setTimeout(() => {
-                if (data.role === "admin") {
+                if (data.role === "super-admin") {
+                  window.location.href = "/super-admin"; // Super Admin goes to super-admin page
+                } else if (data.role === "admin") {
                   window.location.href = "/dashboard"; // Admin goes to dashboard
                 } else {
                   window.location.href = "/dashboard"; // Users go to dashboard

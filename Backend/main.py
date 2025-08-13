@@ -12,8 +12,8 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import get_db, engine
-from models import Organization, User, DocumentChunk, Document, Chat, ChatMessage
-from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse
+from models import Organization, User, DocumentChunk, Document, Chat, ChatMessage, SuperAdmin
+from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse, OrganizationResponse, UserResponse
 from ingestion import process_document, process_document_from_bytes, embed_query
 from llm import get_gemini, make_prompt
 from admin_auth import router as admin_router
@@ -55,15 +55,6 @@ def login_page():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Login page not found</h1>", status_code=404)
 
-@app.get("/admin-register", response_class=HTMLResponse)
-def admin_register_page():
-    """Serve the admin registration page"""
-    try:
-        with open("Frontend/pages/admin_register.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Admin registration page not found</h1>", status_code=404)
-
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page():
     """Serve the dashboard page"""
@@ -90,6 +81,15 @@ def admin_users_page():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Admin users page not found</h1>", status_code=404)
+
+@app.get("/super-admin", response_class=HTMLResponse)
+def super_admin_page():
+    """Serve the super admin page"""
+    try:
+        with open("Frontend/pages/super_admin.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Super admin page not found</h1>", status_code=404)
 
 # ========================================
 # STATIC FILES ROUTES
@@ -130,7 +130,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     qvec = embed_query(payload.question)
     qvec_np = np.array(qvec, dtype=np.float32)
 
-    # Retrieve top-k via pgvector distance operator `<=>` (lower is closer)
+    # Retrieve top-k via pgvector distance operator <=> (lower is closer)
     top_k = int(os.getenv("RAG_TOP_K", "5"))
     sql = text(
         f"""

@@ -10,6 +10,7 @@ from pgvector.sqlalchemy import Vector
 Base = declarative_base()
 
 class RoleEnum(str, enum.Enum):
+    super_admin = "super-admin"
     admin = "admin"
     user  = "user"
 
@@ -107,3 +108,11 @@ class Feedback(Base):
 
     chat = relationship("Chat", back_populates="feedbacks")
     message = relationship("ChatMessage", back_populates="feedbacks")
+
+
+class SuperAdmin(Base):
+    __tablename__ = "super_admins"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(Text, unique=True, nullable=False)
+    password_hash = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

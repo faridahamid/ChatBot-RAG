@@ -9,8 +9,31 @@ class OrgCreate(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
-    role: str = Field(pattern="^(admin|user)$")
+    role: str = Field(pattern="^(super-admin|admin|user)$")
+    organization_id: Optional[UUID] = None  # Optional for super-admin
+
+class SuperAdminCreate(BaseModel):
+    username: str
+    password: str
+
+class SuperAdminLogin(BaseModel):
+    username: str
+    password: str
+
+class OrganizationResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    user_count: int = 0
+    admin_count: int = 0
+
+class UserResponse(BaseModel):
+    id: UUID
+    username: str
+    role: str
     organization_id: UUID
+    organization_name: str
+    created_at: str
 
 
 class UploadResponse(BaseModel):
@@ -35,4 +58,3 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-

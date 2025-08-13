@@ -326,6 +326,13 @@
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
+            
+            // Redirect super-admin users to their dashboard
+            if (user.role === "super-admin") {
+              window.location.href = "/super-admin";
+              return;
+            }
+            
             document.getElementById("username").textContent =
               user.username || "N/A";
             document.getElementById("role").textContent = user.role || "N/A";

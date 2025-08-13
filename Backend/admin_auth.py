@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel, Field
 from database import get_db
-from models import User, Organization, Document, Chat, ChatMessage, Feedback
+from models import User, Organization, Document, Chat, ChatMessage, Feedback, SuperAdmin
+from schemas import OrgCreate, UserCreate, OrganizationResponse, UserResponse, SuperAdminCreate, SuperAdminLogin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -20,11 +21,6 @@ class AdminRegisterResponse(BaseModel):
     user_id: uuid.UUID
     username: str
     organization_name: str
-
-class OrganizationResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-    description: str = None
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt"""
@@ -480,11 +476,295 @@ def delete_user(
         
         # Log the detailed error for debugging
         print(f"Detailed error during user deletion: {error_msg}")
-        print(f"Error type: {type(e)._name_}")
+        print(f"Error type: {type(e).name}")
         print(f"User being deleted: {user_to_delete.username if user_to_delete else 'Unknown'}")
         print(f"User ID: {user_id}")
         
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=detail
+        )
+
+@router.post("/super-admin/login")
+def super_admin_login(request: SuperAdminLogin, db: Session = Depends(get_db)):
+    """Login for super-admin users"""
+    
+    # Find super-admin by username
+    super_admin = db.query(SuperAdmin).filter(SuperAdmin.username == request.username).first()
+    if not super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
+        )
+    
+    # Verify password
+    if not verify_password(request.password, super_admin.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
+        )
+    
+    return {
+        "message": "Login successful",
+        "user_id": super_admin.id,
+        "username": super_admin.username,
+        "role": "super-admin",
+        "created_at": super_admin.created_at
+    }
+
+@router.post("/super-admin/register")
+def register_super_admin(request: SuperAdminCreate, db: Session = Depends(get_db)):
+    """Register a new super-admin user (only for initial setup)"""
+    
+    # Check if username already exists
+    existing_user = db.query(SuperAdmin).filter(SuperAdmin.username == request.username).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )
+    
+    # Hash the password
+    password_hash = hash_password(request.password)
+    
+    # Create new super-admin user
+    new_super_admin = SuperAdmin(
+        username=request.username,
+        password_hash=password_hash
+    )
+    
+    try:
+        db.add(new_super_admin)
+        db.commit()
+        db.refresh(new_super_admin)
+        
+        return {
+            "message": "Super-admin registered successfully",
+            "user_id": new_super_admin.id,
+            "username": new_super_admin.username
+        }
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to register super-admin: {str(e)}"
+        )
+
+@router.get("/super-admin/organizations", response_model=List[OrganizationResponse])
+def get_all_organizations(db: Session = Depends(get_db)):
+    """Get all organizations with user counts for super-admin"""
+    try:
+        organizations = db.query(Organization).all()
+        
+        result = []
+        for org in organizations:
+            # Count users and admins in this organization
+            user_count = db.query(User).filter(User.organization_id == org.id).count()
+            admin_count = db.query(User).filter(
+                User.organization_id == org.id, 
+                User.role == "admin"
+            ).count()
+            
+            result.append(OrganizationResponse(
+                id=org.id,
+                name=org.name,
+                description=org.description,
+                user_count=user_count,
+                admin_count=admin_count
+            ))
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error in get_all_organizations: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+
+@router.post("/super-admin/organizations", response_model=dict)
+def create_organization(payload: OrgCreate, db: Session = Depends(get_db)):
+    """Create a new organization - Super-admin only"""
+    try:
+        org = Organization(name=payload.name, description=payload.description)
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+        return {"id": org.id, "name": org.name, "message": "Organization created successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create organization: {str(e)}"
+        )
+
+@router.delete("/super-admin/organizations/{org_id}")
+def delete_organization(org_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Delete an organization and all its data - Super-admin only"""
+    try:
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+        if not org:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found"
+            )
+        
+        # Delete the organization (cascade will handle related data)
+        db.delete(org)
+        db.commit()
+        
+        return {"message": f"Organization '{org.name}' deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete organization: {str(e)}"
+        )
+
+@router.get("/super-admin/organizations/{org_id}/users", response_model=List[UserResponse])
+def get_organization_users(org_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Get all users in a specific organization for super-admin"""
+    try:
+        # Get organization
+        organization = db.query(Organization).filter(Organization.id == org_id).first()
+        if not organization:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found"
+            )
+        
+        # Get all users in the organization
+        users = db.query(User).filter(User.organization_id == org_id).all()
+        
+        # Return user list with organization name
+        return [
+            UserResponse(
+                id=user.id,
+                username=user.username,
+                role=user.role,
+                organization_id=user.organization_id,
+                organization_name=organization.name,
+                created_at=str(user.created_at)
+            )
+            for user in users
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+
+@router.post("/super-admin/organizations/{org_id}/admins", response_model=dict)
+def add_admin_to_organization(
+    org_id: uuid.UUID, 
+    request: UserCreate, 
+    db: Session = Depends(get_db)
+):
+    """Add an admin to an organization - Super-admin only"""
+    try:
+        # Verify organization exists
+        organization = db.query(Organization).filter(Organization.id == org_id).first()
+        if not organization:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found"
+            )
+        
+        # Check if username already exists
+        existing_user = db.query(User).filter(User.username == request.username).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists"
+            )
+        
+        # Hash the password
+        password_hash = hash_password(request.password)
+        
+        # Create new admin user
+        new_admin = User(
+            username=request.username,
+            password_hash=password_hash,
+            role="admin",
+            organization_id=org_id
+        )
+        
+        db.add(new_admin)
+        db.commit()
+        db.refresh(new_admin)
+        
+        return {
+            "message": "Admin added successfully",
+            "user_id": new_admin.id,
+            "username": new_admin.username,
+            "organization_name": organization.name
+        }
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add admin: {str(e)}"
+        )
+
+@router.delete("/super-admin/users/{user_id}")
+def delete_user_super_admin(user_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Delete a user from any organization - Super-admin only"""
+    try:
+        # Get the user to delete
+        user_to_delete = db.query(User).filter(User.id == user_id).first()
+        if not user_to_delete:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Prevent deletion of the last admin in an organization
+        if user_to_delete.role == "admin":
+            admin_count = db.query(User).filter(
+                User.organization_id == user_to_delete.organization_id,
+                User.role == "admin"
+            ).count()
+            if admin_count <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete the last admin in the organization"
+                )
+        
+        # Get all chats for this user
+        user_chats = db.query(Chat).filter(Chat.user_id == user_id).all()
+        
+        if user_chats:
+            for chat in user_chats:
+                # Delete all feedbacks for this chat
+                db.query(Feedback).filter(Feedback.chat_id == chat.id).delete()
+                # Delete all messages for this chat
+                db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).delete()
+            
+            # Delete all chats for this user
+            db.query(Chat).filter(Chat.user_id == user_id).delete()
+        
+        # Update documents uploaded by this user (set uploaded_by to NULL)
+        db.query(Document).filter(Document.uploaded_by == user_id).update({Document.uploaded_by: None})
+        
+        # Finally, delete the user
+        db.delete(user_to_delete)
+        db.commit()
+        
+        return {
+            "message": f"User {user_to_delete.username} deleted successfully",
+            "deleted_data": {
+                "chats_deleted": len(user_chats),
+                "user_id": str(user_id),
+                "username": user_to_delete.username,
+                "organization_id": str(user_to_delete.organization_id)
+            }
+        }
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete user: {str(e)}"
         )

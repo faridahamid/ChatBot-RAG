@@ -1,25 +1,43 @@
-# ingestion.py
 import os
 import uuid
 import hashlib
 import re
 import io
-from typing import List, Optional, Iterable
+from typing import List, Optional
 import pandas as pd
 from pypdf import PdfReader
 import docx
-from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
 
 from models import Document, DocumentChunk
 
+from FlagEmbedding import BGEM3FlagModel
+import numpy as np
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
-_embedder = SentenceTransformer(EMBEDDING_MODEL)
+LOCAL_BGE_DIR = r"C:\hf\models\BAAI\bge-m3" 
+EMBEDDING_MODEL = (
+    LOCAL_BGE_DIR if os.path.isdir(LOCAL_BGE_DIR)
+    else os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+)
+
+BGE_DEVICE = os.getenv("BGE_DEVICE", "cpu") 
 
 
+try:
+    print(f"Loading embedding model from: {EMBEDDING_MODEL}")
+    _model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True, device=BGE_DEVICE)
+    print("Embedding model loaded successfully")
+except Exception as e:
+    print(f"Error loading embedding model: {e}")
+    print("Falling back to CPU-only model...")
+    try:
+        _model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, device="cpu")
+        print("CPU-only embedding model loaded successfully")
+    except Exception as e2:
+        print(f"Failed to load embedding model: {e2}")
+        raise Exception(f"Could not load embedding model: {e2}")
 
-
+# ---------- File readers ----------
 def _read_pdf(path: str) -> str:
     reader = PdfReader(path)
     return "\n".join([(p.extract_text() or "") for p in reader.pages])
@@ -34,15 +52,14 @@ def _read_txt(path: str) -> str:
 
 def _read_csv(path: str) -> str:
     df = pd.read_csv(path)
-    df = df.fillna("")  
+    df = df.fillna("")
     lines = []
-   
     for _, row in df.iterrows():
         line = " | ".join(f"{col}: {row[col]}" for col in df.columns)
         lines.append(line)
     return "\n".join(lines)
 
-# In-memory readers ---------------------------------------------------------
+# In-memory readers
 def _read_pdf_bytes(data: bytes) -> str:
     reader = PdfReader(io.BytesIO(data))
     return "\n".join([(p.extract_text() or "") for p in reader.pages])
@@ -63,9 +80,7 @@ def _read_csv_bytes(data: bytes) -> str:
         lines.append(line)
     return "\n".join(lines)
 
-
 def extract_text(file_path: str, filetype: str) -> str:
-   
     ft = (filetype or "").lower()
     if ft == "pdf":
         return _read_pdf(file_path)
@@ -79,68 +94,103 @@ def extract_text(file_path: str, filetype: str) -> str:
 
 def extract_text_from_bytes(file_bytes: bytes, filetype: str) -> str:
     ft = (filetype or "").lower()
-    if ft == "pdf":
-        return _read_pdf_bytes(file_bytes)
-    if ft == "docx":
-        return _read_docx_bytes(file_bytes)
-    if ft == "txt":
-        return _read_txt_bytes(file_bytes)
-    if ft == "csv":
-        return _read_csv_bytes(file_bytes)
-    raise ValueError(f"Unsupported file type: {filetype}")
+    print(f"Extracting text from {ft} file ({len(file_bytes)} bytes)")
+    
+    try:
+        if ft == "pdf":
+            text = _read_pdf_bytes(file_bytes)
+        elif ft == "docx":
+            text = _read_docx_bytes(file_bytes)
+        elif ft == "txt":
+            text = _read_txt_bytes(file_bytes)
+        elif ft == "csv":
+            text = _read_csv_bytes(file_bytes)
+        else:
+            raise ValueError(f"Unsupported file type: {filetype}")
+        
+        print(f"Extracted {len(text)} characters of text")
+        if len(text.strip()) == 0:
+            print("Warning: Extracted text is empty")
+        return text
+    except Exception as e:
+        print(f"Error extracting text from {ft} file: {e}")
+        raise Exception(f"Failed to extract text from {ft} file: {e}")
 
-
-
+# ---------- Chunk & Embed ----------
 def chunk_text(text: str, max_chars: int = 800, overlap: int = 100) -> List[str]:
-   
     text = (text or "").strip()
+    print(f"Chunking text of length {len(text)} with max_chars={max_chars}, overlap={overlap}")
+    
     if not text:
+        print("Warning: Empty text provided for chunking")
         return []
+    
     chunks, i, n = [], 0, len(text)
     step = max(1, max_chars - overlap)
+    
     while i < n:
         end = min(i + max_chars, n)
         piece = text[i:end].strip()
         if piece:
             chunks.append(piece)
         i += step
+    
+    print(f"Created {len(chunks)} chunks")
     return chunks
 
-def embed_chunks_in_batches(chunks: List[str], batch_size: int = 64) -> List[List[float]]:
-    if not chunks:
-        return []
-    embeddings: List[List[float]] = []
-    total = len(chunks)
-    for start in range(0, total, batch_size):
-        end = min(start + batch_size, total)
-        batch = chunks[start:end]
-        vecs = _embedder.encode(batch, normalize_embeddings=True).tolist()
-        embeddings.extend(vecs)
-    return embeddings
+def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
+    """Use model.encode for passages and L2-normalize for cosine distance."""
+    try:
+        print(f"Embedding {len(texts)} text chunks...")
+        out = _model.encode(
+            texts,
+            batch_size=max(1, len(texts)),
+            return_dense=True,
+            return_sparse=False,
+            return_colbert_vecs=False,
+        )
+        vecs = out["dense_vecs"]
+        # Convert to numpy array and L2-normalize
+        vecs_np = np.array(vecs, dtype=np.float32)
+        norms = np.linalg.norm(vecs_np, axis=1, keepdims=True)
+        norms = np.clip(norms, 1e-12, None)
+        vecs_np = vecs_np / norms
+        result = vecs_np.tolist()
+        print(f"Successfully embedded {len(result)} chunks")
+        return result
+    except Exception as e:
+        print(f"Error during embedding: {e}")
+        raise Exception(f"Embedding failed: {e}")
 
 def embed_query(question: str) -> List[float]:
-    return _embedder.encode([question], normalize_embeddings=True).tolist()[0]
+    """Use model.encode_queries for queries and L2-normalize for cosine distance."""
+    out = _model.encode_queries(
+        [question],
+        batch_size=1,
+        return_dense=True,
+        return_sparse=False,
+        return_colbert_vecs=False,
+    )
+    v = out["dense_vecs"][0]
+    v_np = np.array(v, dtype=np.float32)
+    norm = float(np.linalg.norm(v_np))
+    norm = max(norm, 1e-12)
+    v_np = v_np / norm
+    return v_np.tolist()
 
-
-
-
+# ---------- Hash helpers ----------
 def extract_text_from_raw(raw_text: Optional[str]) -> str:
     return (raw_text or "").strip()
 
-
 def _normalize_text_for_hash(text: str) -> str:
-    # Lowercase, collapse whitespace, strip
     lowered = text.lower()
     collapsed = re.sub(r"\s+", " ", lowered)
     return collapsed.strip()
 
-
 def _sha256_hex(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
 
-
-
-
+# ---------- Ingestion pipelines ----------
 def process_document(
     db: Session,
     org_id: str,
@@ -152,22 +202,19 @@ def process_document(
     embedding_batch_size: int = 64,
     insert_batch_size: int = 200,
 ):
-    #duplicate
+    # Read + dedupe per org
     text_all = extract_text(file_path, filetype)
     normalized = _normalize_text_for_hash(text_all)
     content_hash = _sha256_hex(normalized)
 
-   
     existing = (
         db.query(Document)
         .filter(Document.organization_id == org_id, Document.content_hash == content_hash)
         .first()
     )
     if existing is not None:
-        
         raise ValueError("DUPLICATE_DOCUMENT")
 
-    
     doc = Document(
         id=uuid.uuid4(),
         organization_id=org_id,
@@ -177,42 +224,51 @@ def process_document(
         content_hash=content_hash,
     )
     db.add(doc)
-    
+    # Flush to obtain doc.id without committing the transaction yet
     db.flush()
-    db.commit()
 
-    
     chunks = chunk_text(text_all, max_chars=chunk_size, overlap=chunk_overlap)
-
-    
     total = len(chunks)
-    for start in range(0, total, embedding_batch_size):
-        end = min(start + embedding_batch_size, total)
-        batch_texts = chunks[start:end]
-        batch_vecs = _embedder.encode(batch_texts, normalize_embeddings=True).tolist()
+    
+    print(f"Created {total} chunks from document")
 
-        
-        batch_objects: List[DocumentChunk] = [
-            DocumentChunk(
-                id=uuid.uuid4(),
-                document_id=doc.id,
-                content=content,
-                embedding=vec,
-            )
-            for content, vec in zip(batch_texts, batch_vecs)
-        ]
+    if total == 0:
+        print("Warning: No chunks created from document")
+        return {"document_id": doc.id, "chunks": 0}
 
-        
-        for i in range(0, len(batch_objects), insert_batch_size):
-            slice_objs = batch_objects[i : i + insert_batch_size]
-            if not slice_objs:
-                continue
-            db.bulk_save_objects(slice_objs)
-            db.flush()
-            db.commit()
+    try:
+        for start in range(0, total, embedding_batch_size):
+            end = min(start + embedding_batch_size, total)
+            batch_texts = chunks[start:end]
+            print(f"Processing batch {start//embedding_batch_size + 1}: chunks {start+1}-{end}")
+            
+            batch_vecs = _embed_passages_batch(batch_texts)
+
+            batch_objects: List[DocumentChunk] = [
+                DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    content=content,
+                    embedding=vec,
+                )
+                for content, vec in zip(batch_texts, batch_vecs)
+            ]
+
+            for i in range(0, len(batch_objects), insert_batch_size):
+                slice_objs = batch_objects[i : i + insert_batch_size]
+                if not slice_objs:
+                    continue
+                db.bulk_save_objects(slice_objs)
+                db.flush()
+                db.commit()
+                print(f"Saved {len(slice_objs)} chunks to database")
+    except Exception as e:
+        print(f"Error during chunk processing: {e}")
+        # Rollback the document creation if chunking fails
+        db.rollback()
+        raise Exception(f"Failed to process document chunks: {e}")
 
     return {"document_id": doc.id, "chunks": total}
-
 
 def process_document_from_bytes(
     db: Session,
@@ -226,12 +282,10 @@ def process_document_from_bytes(
     embedding_batch_size: int = 64,
     insert_batch_size: int = 200,
 ):
-    # Read and hash full text for duplicate detection
     text_all = extract_text_from_bytes(file_bytes, filetype)
     normalized = _normalize_text_for_hash(text_all)
     content_hash = _sha256_hex(normalized)
 
-    # Check duplicate per organization
     existing = (
         db.query(Document)
         .filter(Document.organization_id == org_id, Document.content_hash == content_hash)
@@ -240,7 +294,6 @@ def process_document_from_bytes(
     if existing is not None:
         raise ValueError("DUPLICATE_DOCUMENT")
 
-    # Create Document row
     doc = Document(
         id=uuid.uuid4(),
         organization_id=org_id,
@@ -251,34 +304,45 @@ def process_document_from_bytes(
     )
     db.add(doc)
     db.flush()
-    db.commit()
 
-    # Chunk
     chunks = chunk_text(text_all, max_chars=chunk_size, overlap=chunk_overlap)
     total = len(chunks)
+    
+    print(f"Created {total} chunks from document")
 
-    # Embed and insert per batch
-    for start in range(0, total, embedding_batch_size):
-        end = min(start + embedding_batch_size, total)
-        batch_texts = chunks[start:end]
-        batch_vecs = _embedder.encode(batch_texts, normalize_embeddings=True).tolist()
+    if total == 0:
+        print("Warning: No chunks created from document")
+        return {"document_id": doc.id, "chunks": 0}
 
-        # Insert this embedding batch in smaller DB batches
-        batch_objects: List[DocumentChunk] = [
-            DocumentChunk(
-                id=uuid.uuid4(),
-                document_id=doc.id,
-                content=content,
-                embedding=vec,
-            )
-            for content, vec in zip(batch_texts, batch_vecs)
-        ]
-        for i in range(0, len(batch_objects), insert_batch_size):
-            slice_objs = batch_objects[i : i + insert_batch_size]
-            if not slice_objs:
-                continue
-            db.bulk_save_objects(slice_objs)
-            db.flush()
-            db.commit()
+    try:
+        for start in range(0, total, embedding_batch_size):
+            end = min(start + embedding_batch_size, total)
+            batch_texts = chunks[start:end]
+            print(f"Processing batch {start//embedding_batch_size + 1}: chunks {start+1}-{end}")
+            
+            batch_vecs = _embed_passages_batch(batch_texts)
+
+            batch_objects: List[DocumentChunk] = [
+                DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    content=content,
+                    embedding=vec,
+                )
+                for content, vec in zip(batch_texts, batch_vecs)
+            ]
+            for i in range(0, len(batch_objects), insert_batch_size):
+                slice_objs = batch_objects[i : i + insert_batch_size]
+                if not slice_objs:
+                    continue
+                db.bulk_save_objects(slice_objs)
+                db.flush()
+                db.commit()
+                print(f"Saved {len(slice_objs)} chunks to database")
+    except Exception as e:
+        print(f"Error during chunk processing: {e}")
+        # Rollback the document creation if chunking fails
+        db.rollback()
+        raise Exception(f"Failed to process document chunks: {e}")
 
     return {"document_id": doc.id, "chunks": total}

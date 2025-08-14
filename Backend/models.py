@@ -64,7 +64,7 @@ class DocumentChunk(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(768), nullable=False)  # pgvector column; dim must match your embed model
+    embedding = Column(Vector(1024), nullable=False)  # pgvector column; dim must match your embed model
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     document = relationship("Document", back_populates="chunks")

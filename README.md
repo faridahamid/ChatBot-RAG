@@ -29,7 +29,7 @@ Users interact with the chatbot through **text** (and later voice), receiving an
 - **Backend API** – Python (FastAPI)
 - **Database** – PostgreSQL
 - **Vector Store** – PostgreSQL `pgvector`
-- **Embeddings** – `BAAI/bge-base-en` via SentenceTransformers
+- **Embeddings** – `BAAI/bge-m3` via FlagEmbedding
 - **LLM Layer** – Gemini
 - **Document Processing** – PyMuPDF, python-docx, pandas
 
@@ -68,7 +68,7 @@ Users interact with the chatbot through **text** (and later voice), receiving an
 | Backend API         | FastAPI |
 | Database            | PostgreSQL |
 | Vector DB           | PostgreSQL + `pgvector` |
-| Embeddings          | SentenceTransformers (`BAAI/bge-base-en`) |
+| Embeddings          | FlagEmbedding (`BAAI/bge-m3`) |
 | LLM Provider        | Gemini |
 | Framework           | LangChain |
 | File Processing     | PyMuPDF, python-docx, pandas |

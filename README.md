@@ -6,7 +6,7 @@ Each chatbot responds **only** from its organization's uploaded content, ensurin
 ---
 
 ## Overview
-This platform enables organizations (e.g., insurance, medical, government) to upload and manage their own knowledge base.  
+This platform enables organizations (e.g., insurance, medical, ML/DL) to upload and manage their own knowledge base.  
 Users interact with the chatbot through **text** (and later voice), receiving answers strictly from their organization’s documents.  
 
 Admins retain full control over **content uploads, user management, and feedback review**, while users enjoy a smooth conversational experience with history tracking and fallback handling.
@@ -103,7 +103,9 @@ This means a user can ask a question in one language (e.g., Arabic) and still re
 - Backend retrieves the answer from **English policy documents**.  
 - Gemini produces a response in Arabic, grounded in the English content.  
 
+
 This enables **seamless multilingual interaction** without requiring organizations to translate their documents manually.
+
 ---
 ##  Tech Stack
 | Layer               | Technology |
@@ -121,4 +123,3 @@ This enables **seamless multilingual interaction** without requiring organizatio
 
 ---
 
-## 🗂 Repository Structure

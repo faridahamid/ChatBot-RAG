@@ -45,6 +45,7 @@ class AskRequest(BaseModel):
     org_id: UUID
     user_id: UUID
     question: str
+    chat_id: Optional[str] = None
 
 class AskResponse(BaseModel):
     answer: str

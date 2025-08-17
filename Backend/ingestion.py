@@ -139,7 +139,7 @@ def chunk_text(text: str, max_chars: int = 800, overlap: int = 100) -> List[str]
     return chunks
 
 def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
-    """Use model.encode for passages and L2-normalize for cosine distance."""
+    
     try:
         print(f"Embedding {len(texts)} text chunks...")
         out = _model.encode(
@@ -163,7 +163,7 @@ def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
         raise Exception(f"Embedding failed: {e}")
 
 def embed_query(question: str) -> List[float]:
-    """Use model.encode_queries for queries and L2-normalize for cosine distance."""
+ 
     out = _model.encode_queries(
         [question],
         batch_size=1,

@@ -93,6 +93,84 @@ def get_js(filename: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="JavaScript file not found")
 
+# ---------- CHAT MANAGEMENT API ----------
+@app.post("/chats", response_model=dict)
+def create_chat(payload: dict, db: Session = Depends(get_db)):
+   
+    user_id = payload.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+   
+    chat = Chat(user_id=user_id, title="New Chat")
+    db.add(chat)
+    db.commit()
+    db.refresh(chat)
+    
+    return {"chat_id": str(chat.id), "title": chat.title, "created_at": chat.created_at.isoformat()}
+
+@app.get("/chats/{user_id}", response_model=list)
+def get_user_chats(user_id: str, db: Session = Depends(get_db)):
+    
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    
+    chats = db.query(Chat).filter(Chat.user_id == user_id).order_by(Chat.created_at.desc()).all()
+    
+    return [
+        {
+            "chat_id": str(chat.id),
+            "title": chat.title,
+            "created_at": chat.created_at.isoformat(),
+            "message_count": len(chat.messages)
+        }
+        for chat in chats
+    ]
+
+@app.get("/chats/{chat_id}/messages", response_model=list)
+def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
+    
+   
+    chat = db.query(Chat).filter(Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    
+    messages = db.query(ChatMessage).filter(ChatMessage.chat_id == chat_id).order_by(ChatMessage.created_at).all()
+    
+    return [
+        {
+            "id": str(msg.id),
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat(),
+            "citations": msg.citations
+        }
+        for msg in messages
+    ]
+
+@app.delete("/chats/{chat_id}")
+def delete_chat(chat_id: str, db: Session = Depends(get_db)):
+    
+    
+    chat = db.query(Chat).filter(Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    
+    db.delete(chat)
+    db.commit()
+    
+    return {"message": "Chat deleted successfully"}
+
 # ---------- RAG API ----------
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, db: Session = Depends(get_db)):
@@ -182,18 +260,29 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
 
     # Persist the exchange (best-effort)
     try:
-        chat = Chat(user_id=payload.user_id, title=payload.question[:80])
-        db.add(chat)
-        db.flush()
+        # Use existing chat if chat_id provided, otherwise create new chat
+        if payload.chat_id:
+            chat = db.query(Chat).filter(Chat.id == payload.chat_id, Chat.user_id == payload.user_id).first()
+            if not chat:
+                raise HTTPException(status_code=404, detail="Chat not found or access denied")
+        else:
+            chat = Chat(user_id=payload.user_id, title=payload.question[:80])
+            db.add(chat)
+            db.flush()
+        
+        # Add user message
         db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
+        
+        # Add assistant message with citations
         citations = [
             {"chunk_id": str(r.chunk_id), "filename": r.filename, "score": max(0.0, 1.0 - float(r.distance))}
             for r in rows[:keep]
         ]
         db.add(ChatMessage(chat_id=chat.id, role="assistant", content=answer_text, citations=citations))
         db.commit()
-    except Exception:
+    except Exception as e:
         db.rollback()
+        print(f"Error persisting chat: {e}")
 
     return AskResponse(answer=answer_text.strip())
 

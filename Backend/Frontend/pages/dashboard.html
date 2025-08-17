@@ -4,230 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard - RAG ChatBot</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        color: white;
-      }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-      }
-
-      .header {
-        text-align: center;
-        margin-bottom: 3rem;
-      }
-
-      .welcome-message {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-      }
-
-      .user-info {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-      }
-
-      .user-info h2 {
-        margin-bottom: 1rem;
-        color: #fff;
-      }
-
-      .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-      }
-
-      .info-item {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 1rem;
-        border-radius: 10px;
-      }
-
-      .info-label {
-        font-weight: bold;
-        color: #ddd;
-        margin-bottom: 0.5rem;
-      }
-
-      .info-value {
-        color: #fff;
-      }
-
-      /* Chat Interface Styles */
-      .chat-section {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        display: none; /* Hidden by default, shown only for users */
-      }
-
-      .chat-section h2 {
-        margin-bottom: 1rem;
-        color: #fff;
-        text-align: center;
-      }
-
-      .chat-container {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        padding: 1rem;
-        height: 400px;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 1rem;
-        margin-bottom: 1rem;
-      }
-
-      .message-bubble {
-        margin-bottom: 1rem;
-        padding: 1rem;
-        border-radius: 15px;
-        max-width: 80%;
-        word-wrap: break-word;
-      }
-
-      .message-bubble.user {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        margin-left: auto;
-        color: white;
-      }
-
-      .message-bubble.assistant {
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-
-      .message-bubble .timestamp {
-        font-size: 0.8rem;
-        opacity: 0.7;
-        margin-top: 0.5rem;
-      }
-
-      .chat-input-container {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-      }
-
-      .chat-input {
-        flex: 1;
-        padding: 1rem;
-        border: none;
-        border-radius: 25px;
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        font-size: 1rem;
-      }
-
-      .chat-input::placeholder {
-        color: rgba(255, 255, 255, 0.7);
-      }
-
-      .chat-input:focus {
-        outline: none;
-        background: rgba(255, 255, 255, 0.2);
-      }
-
-      .send-btn {
-        background: linear-gradient(45deg, #28a745, #20c997);
-        color: white;
-        padding: 1rem 2rem;
-        border: none;
-        border-radius: 25px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: transform 0.3s ease;
-      }
-
-      .send-btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .send-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-
-      .loading-indicator {
-        text-align: center;
-        padding: 1rem;
-        color: rgba(255, 255, 255, 0.7);
-        font-style: italic;
-      }
-
-      .actions {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-
-      .btn {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
-        padding: 1rem 2rem;
-        border: none;
-        border-radius: 25px;
-        text-decoration: none;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.3s ease;
-      }
-
-      .btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .logout-btn {
-        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-      }
-
-      .admin-btn {
-        background: linear-gradient(45deg, #28a745, #20c997);
-      }
-
-      .message {
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        text-align: center;
-      }
-
-      .message.success {
-        background: rgba(46, 204, 113, 0.2);
-        border: 1px solid #2ecc71;
-      }
-
-      .message.error {
-        background: rgba(231, 76, 60, 0.2);
-        border: 1px solid #e74c3c;
-      }
-    </style>
+    <link rel="stylesheet" href="/css/dashboard.css">
   </head>
   <body>
     <div class="container">
@@ -262,11 +39,19 @@
 
       <!-- Chat Interface for Users -->
       <div class="chat-section" id="chatSection">
-        <h2>💬 Chat with AI Assistant</h2>
+        <div class="chat-header">
+          <h2>💬 Chat with AI Assistant</h2>
+          <button class="new-chat-btn" onclick="createNewChat()">
+            New Chat
+          </button>
+        </div>
         <p style="text-align: center; margin-bottom: 1rem; opacity: 0.8">
           Ask questions about your organization's documents and get intelligent
           answers
         </p>
+        
+      
+        
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages">
             <div class="message-bubble assistant">
@@ -320,12 +105,16 @@
     </div>
 
     <script>
+      // Global variables for chat management
+      let currentChatId = null;
+      let user = null;
+
       // Load user information from session storage
       function loadUserInfo() {
         const userStr = sessionStorage.getItem("user");
         if (userStr) {
           try {
-            const user = JSON.parse(userStr);
+            user = JSON.parse(userStr);
             
             // Redirect super-admin users to their dashboard
             if (user.role === "super-admin") {
@@ -349,6 +138,8 @@
             } else {
               // Show chat interface for regular users
               document.getElementById("chatSection").style.display = "block";
+              // Load chat history
+              loadChatHistory();
             }
 
             showMessage(
@@ -368,6 +159,126 @@
             window.location.href = "/login";
           }, 2000);
         }
+      }
+
+      // Chat management functions
+      async function createNewChat() {
+        if (!user) {
+          showMessage("User not found. Please log in again.", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch("/chats", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: user.id,
+            }),
+          });
+
+          if (response.ok) {
+            const chatData = await response.json();
+            currentChatId = chatData.chat_id;
+            
+            // Clear chat messages
+            clearChatMessages();
+            
+            // Add welcome message
+            addMessage(
+              "Hello! I'm your AI assistant. I can help you find information from your organization's documents. What would you like to know?",
+              "assistant"
+            );
+            
+            // Refresh chat history
+            loadChatHistory();
+            
+            showMessage("New chat created!", "success");
+          } else {
+            const error = await response.json();
+            showMessage(`Error creating chat: ${error.detail}`, "error");
+          }
+        } catch (error) {
+          console.error("Error creating new chat:", error);
+          showMessage("Error creating new chat.", "error");
+        }
+      }
+
+      async function loadChatHistory() {
+        if (!user) return;
+
+        try {
+          const response = await fetch(`/chats/${user.id}`);
+          if (response.ok) {
+            const chats = await response.json();
+            displayChatHistory(chats);
+          }
+        } catch (error) {
+          console.error("Error loading chat history:", error);
+        }
+      }
+
+      function displayChatHistory(chats) {
+        const chatHistory = document.getElementById("chatHistory");
+        const chatHistoryList = document.getElementById("chatHistoryList");
+        
+        if (chats.length === 0) {
+          chatHistory.style.display = "none";
+          return;
+        }
+
+        chatHistory.style.display = "block";
+        chatHistoryList.innerHTML = "";
+
+        chats.forEach(chat => {
+          const chatItem = document.createElement("div");
+          chatItem.className = `chat-item ${chat.chat_id === currentChatId ? 'active' : ''}`;
+          chatItem.onclick = () => loadChat(chat.chat_id);
+          
+          const title = chat.title || "New Chat";
+          const date = new Date(chat.created_at).toLocaleDateString();
+          const messageCount = chat.message_count || 0;
+          
+          chatItem.innerHTML = `
+            <div class="chat-title">${title}</div>
+            <div class="chat-meta">${date} • ${messageCount} messages</div>
+          `;
+          
+          chatHistoryList.appendChild(chatItem);
+        });
+      }
+
+      async function loadChat(chatId) {
+        if (!user) return;
+
+        try {
+          const response = await fetch(`/chats/${chatId}/messages`);
+          if (response.ok) {
+            const messages = await response.json();
+            currentChatId = chatId;
+            
+            // Clear current messages
+            clearChatMessages();
+            
+            // Load messages
+            messages.forEach(msg => {
+              addMessage(msg.content, msg.role, new Date(msg.created_at));
+            });
+            
+            // Update chat history display
+            loadChatHistory();
+          }
+        } catch (error) {
+          console.error("Error loading chat:", error);
+          showMessage("Error loading chat.", "error");
+        }
+      }
+
+      function clearChatMessages() {
+        const chatMessages = document.getElementById("chatMessages");
+        chatMessages.innerHTML = "";
       }
 
       // Chat functionality
@@ -399,14 +310,11 @@
 
         if (!question) return;
 
-        // Get user info from session
-        const userStr = sessionStorage.getItem("user");
-        if (!userStr) {
+        if (!user) {
           showMessage("Session expired. Please log in again.", "error");
           return;
         }
 
-        const user = JSON.parse(userStr);
         const orgId = user.organization_id;
         const userId = user.id;
 
@@ -433,16 +341,23 @@
         document.getElementById("chatMessages").appendChild(loadingDiv);
 
         try {
+          const requestBody = {
+            org_id: orgId,
+            user_id: userId,
+            question: question,
+          };
+
+          // Add chat_id if we have a current chat
+          if (currentChatId) {
+            requestBody.chat_id = currentChatId;
+          }
+
           const response = await fetch("/ask", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              org_id: orgId,
-              user_id: userId,
-              question: question,
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           const data = await response.json();
@@ -452,6 +367,11 @@
 
           if (response.ok) {
             addMessage(data.answer, "assistant");
+            
+            // If this was a new chat, refresh the history
+            if (!currentChatId) {
+              loadChatHistory();
+            }
           } else {
             addMessage(
               `Error: ${data.detail || "Failed to get response"}`,

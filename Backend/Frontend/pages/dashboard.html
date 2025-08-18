@@ -100,6 +100,15 @@
         >
           👥 Manage Users
         </button>
+        <button
+          class="btn admin-btn"
+          id="adminDocumentActions"
+          onclick="window.location.href='/admin-documents'"
+          style="display: none"
+        >
+          📚 Manage Documents
+        </button>
+        <button class="btn" onclick="window.location.href='/change-password'" style="background: linear-gradient(45deg, #17a2b8, #138496);">🔐 Change Password</button>
         <button class="btn logout-btn" onclick="logout()">Logout</button>
       </div>
     </div>
@@ -134,6 +143,8 @@
               document.getElementById("adminActions").style.display =
                 "inline-block";
               document.getElementById("adminUserActions").style.display =
+                "inline-block";
+              document.getElementById("adminDocumentActions").style.display =
                 "inline-block";
             } else {
               // Show chat interface for regular users

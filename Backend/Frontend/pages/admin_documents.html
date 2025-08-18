@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document Management - RAG ChatBot</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .header {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .header h1 {
+        color: #667eea;
+        font-size: 1.8rem;
+        font-weight: 700;
+      }
+
+      .user-info {
+        text-align: right;
+        color: #666;
+      }
+
+      .user-info .username {
+        font-weight: 600;
+        color: #667eea;
+      }
+
+      .user-info .organization {
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+      }
+
+      .logout-btn {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.3s ease;
+      }
+
+      .logout-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .main-container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .documents-container {
+        background: white;
+        padding: 3rem;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .documents-container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+      }
+
+      .documents-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .documents-header h2 {
+        color: #667eea;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
+
+      .documents-header p {
+        color: #666;
+        font-size: 1rem;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .stat-card {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+      }
+
+      .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+      }
+
+      .documents-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 2rem;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .documents-table th {
+        background: #f8f9fa;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+      }
+
+      .documents-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+        color: #495057;
+      }
+
+      .documents-table tr:hover {
+        background: #f8f9fa;
+      }
+
+      .file-type {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .file-type.pdf {
+        background: #dc3545;
+        color: white;
+      }
+
+      .file-type.docx {
+        background: #007bff;
+        color: white;
+      }
+
+      .file-type.txt {
+        background: #6c757d;
+        color: white;
+      }
+
+      .file-type.csv {
+        background: #28a745;
+        color: white;
+      }
+
+      .delete-btn {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.3s ease;
+      }
+
+      .delete-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .delete-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .message {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        text-align: center;
+        font-weight: 500;
+      }
+
+      .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 2rem;
+        color: #666;
+      }
+
+      .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .no-documents {
+        text-align: center;
+        padding: 3rem;
+        color: #666;
+      }
+
+      .no-documents-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+      }
+
+      .navigation {
+        text-align: center;
+        margin-top: 2rem;
+      }
+
+      .nav-btn {
+        display: inline-block;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        text-decoration: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        margin: 0 0.5rem;
+        transition: transform 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+      }
+
+      .upload-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+      }
+
+      @media (max-width: 768px) {
+        .header {
+          flex-direction: column;
+          text-align: center;
+        }
+
+        .user-info {
+          text-align: center;
+        }
+
+        .documents-container {
+          padding: 2rem;
+        }
+
+        .documents-table {
+          font-size: 0.9rem;
+        }
+
+        .documents-table th,
+        .documents-table td {
+          padding: 0.75rem 0.5rem;
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <!-- Header with user info -->
+      <div class="header">
+        <div>
+          <h1>Document Management</h1>
+        </div>
+        <div class="user-info">
+          <div class="username" id="username">Loading...</div>
+          <div class="organization" id="organization">Loading...</div>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+
+      <!-- Main documents container -->
+      <div class="documents-container">
+        <div class="documents-header">
+          <h2>📚 Document Management</h2>
+          <p>Manage documents in your organization's knowledge base</p>
+        </div>
+
+        <div id="message"></div>
+
+        <!-- Statistics -->
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+          <div class="stat-card">
+            <div class="stat-number" id="totalDocuments">0</div>
+            <div class="stat-label">Total Documents</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="totalChunks">0</div>
+            <div class="stat-label">Total Chunks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="totalSize">0</div>
+            <div class="stat-label">Total Size</div>
+          </div>
+        </div>
+
+        <!-- Documents Table -->
+        <div id="documentsContent">
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading documents...</p>
+          </div>
+        </div>
+
+        <div class="navigation">
+          <button class="nav-btn" onclick="loadDocuments()" style="background: linear-gradient(45deg, #17a2b8, #138496);">🔄 Refresh</button>
+          <a href="/admin-upload" class="nav-btn upload-btn">📁 Upload New Document</a>
+          <a href="/admin-users" class="nav-btn">👥 Manage Users</a>
+          <a href="/change-password" class="nav-btn" style="background: linear-gradient(45deg, #17a2b8, #138496);">🔐 Change Password</a>
+          <a href="/dashboard" class="nav-btn">← Back to Dashboard</a>
+          <a href="/" class="nav-btn">🏠 Home</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Check if user is logged in and is admin
+      document.addEventListener("DOMContentLoaded", function () {
+        checkAuth();
+        loadDocuments();
+      });
+
+      function checkAuth() {
+        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+        
+        if (!user.id || user.role !== "admin") {
+          showMessage("Access denied. Admin privileges required.", "error");
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+          return;
+        }
+
+        // Display user info
+        document.getElementById("username").textContent = `👤 ${user.username}`;
+        document.getElementById("organization").textContent = `🏢 ${user.organization_name || "Unknown Organization"}`;
+      }
+
+      async function loadDocuments() {
+        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+        
+        if (!user.id || !user.organization_id) {
+          showMessage("User session expired. Please login again.", "error");
+          return;
+        }
+
+        // Show loading state
+        const content = document.getElementById("documentsContent");
+        content.innerHTML = `
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading documents...</p>
+          </div>
+        `;
+
+        try {
+          const response = await fetch(`/documents/${user.organization_id}?user_id=${user.id}`);
+          const data = await response.json();
+
+          if (response.ok) {
+            displayDocuments(data.documents);
+            updateStats(data.documents);
+            if (data.documents.length > 0) {
+              showMessage(`✅ Loaded ${data.documents.length} document(s) successfully!`, "success");
+            }
+          } else {
+            showMessage(data.detail || "Failed to load documents.", "error");
+            // Show empty state on error
+            content.innerHTML = `
+              <div class="no-documents">
+                <div class="no-documents-icon">❌</div>
+                <h3>Error loading documents</h3>
+                <p>${data.detail || "Failed to load documents"}</p>
+                <p>Click refresh to try again.</p>
+              </div>
+            `;
+          }
+        } catch (error) {
+          console.error("Error loading documents:", error);
+          showMessage("An error occurred while loading documents.", "error");
+          // Show empty state on error
+          content.innerHTML = `
+            <div class="no-documents">
+              <div class="no-documents-icon">❌</div>
+              <h3>Error loading documents</h3>
+              <p>Network error occurred</p>
+              <p>Click refresh to try again.</p>
+            </div>
+          `;
+        }
+      }
+
+      function displayDocuments(documents) {
+        const content = document.getElementById("documentsContent");
+        
+        if (documents.length === 0) {
+          content.innerHTML = `
+            <div class="no-documents">
+              <div class="no-documents-icon">📚</div>
+              <h3>No documents found</h3>
+              <p>You haven't uploaded any documents yet.</p>
+              <p>Click "Upload New Document" to get started!</p>
+            </div>
+          `;
+          return;
+        }
+
+        let tableHTML = `
+          <table class="documents-table">
+            <thead>
+              <tr>
+                <th>Filename</th>
+                <th>Type</th>
+                <th>Chunks</th>
+                <th>Uploaded</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        documents.forEach(doc => {
+          const uploadDate = new Date(doc.uploaded_at).toLocaleDateString();
+          const fileTypeClass = getFileTypeClass(doc.filetype);
+          
+          tableHTML += `
+            <tr>
+              <td><strong>${doc.filename}</strong></td>
+              <td><span class="file-type ${fileTypeClass}">${doc.filetype}</span></td>
+              <td>${doc.chunk_count}</td>
+              <td>${uploadDate}</td>
+              <td>
+                <button class="delete-btn" onclick="deleteDocument('${doc.id}', '${doc.filename}')">
+                  🗑 Delete
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+
+        tableHTML += `
+            </tbody>
+          </table>
+        `;
+
+        content.innerHTML = tableHTML;
+      }
+
+      function getFileTypeClass(filetype) {
+        const type = filetype.toLowerCase();
+        if (type === 'pdf') return 'pdf';
+        if (type === 'docx') return 'docx';
+        if (type === 'txt') return 'txt';
+        if (type === 'csv') return 'csv';
+        return 'txt'; // default
+      }
+
+      function updateStats(documents) {
+        const totalDocs = documents.length;
+        const totalChunks = documents.reduce((sum, doc) => sum + doc.chunk_count, 0);
+        
+        document.getElementById("totalDocuments").textContent = totalDocs;
+        document.getElementById("totalChunks").textContent = totalChunks;
+        document.getElementById("totalSize").textContent = totalDocs; // Simplified for now
+        
+        document.getElementById("statsGrid").style.display = "grid";
+      }
+
+      async function deleteDocument(documentId, filename) {
+        if (!confirm(`Are you sure you want to delete "${filename}"? This action cannot be undone.`)) {
+          return;
+        }
+
+        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+        
+        if (!user.id) {
+          showMessage("User session expired. Please login again.", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(`/documents/${documentId}?user_id=${user.id}`, {
+            method: "DELETE"
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            showMessage(`✅ Document "${filename}" deleted successfully!`, "success");
+            // Reload documents
+            setTimeout(() => {
+              loadDocuments();
+            }, 1000);
+          } else {
+            showMessage(data.detail || "Failed to delete document.", "error");
+          }
+        } catch (error) {
+          console.error("Error deleting document:", error);
+          showMessage("An error occurred while deleting the document.", "error");
+        }
+      }
+
+      function showMessage(message, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = message;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = "block";
+        
+        // Auto-hide success messages
+        if (type === "success") {
+          setTimeout(() => {
+            messageDiv.style.display = "none";
+          }, 5000);
+        }
+      }
+
+      function logout() {
+        sessionStorage.removeItem("user");
+        window.location.href = "/login";
+      }
+    </script>
+  </body>
+</html>

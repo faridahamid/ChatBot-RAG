@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import List
 
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import numpy as np
@@ -10,8 +10,8 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import get_db, engine
-from models import Organization, User, DocumentChunk, Document, Chat, ChatMessage
-from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse
+from models import Organization, User, DocumentChunk, Document, Chat, ChatMessage, SuperAdmin
+from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse, OrganizationResponse, UserResponse
 from ingestion import process_document, process_document_from_bytes, embed_query
 from llm import get_gemini, make_prompt
 from admin_auth import router as admin_router
@@ -46,13 +46,13 @@ def login_page():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Login page not found</h1>", status_code=404)
 
-@app.get("/admin-register", response_class=HTMLResponse)
-def admin_register_page():
-    try:
-        with open("Frontend/pages/admin_register.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Admin registration page not found</h1>", status_code=404)
+# @app.get("/admin-register", response_class=HTMLResponse)
+# def admin_register_page():
+#     try:
+#         with open("Frontend/pages/admin_register.html", "r", encoding="utf-8") as f:
+#             return HTMLResponse(content=f.read())
+#     except FileNotFoundError:
+#         return HTMLResponse(content="<h1>Admin registration page not found</h1>", status_code=404)
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page():
@@ -77,7 +77,34 @@ def admin_users_page():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Admin users page not found</h1>", status_code=404)
+@app.get("/super-admin", response_class=HTMLResponse)
+def super_admin_page():
+    """Serve the super admin page"""
+    try:
+        with open("Frontend/pages/super_admin.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Super admin page not found</h1>", status_code=404)
 
+@app.get("/admin-documents", response_class=HTMLResponse)
+def admin_documents_page():
+    """Serve the admin document management page"""
+    try:
+        with open("Frontend/pages/admin_documents.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin documents page not found</h1>", status_code=404)
+
+@app.get("/change-password", response_class=HTMLResponse)
+def change_password_page():
+    """Serve the password change page"""
+    try:
+        with open("Frontend/pages/change_password.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Password change page not found</h1>", status_code=404)
+    
+    
 # ---------- STATIC ----------
 @app.get("/css/{filename}")
 def get_css(filename: str):
@@ -327,6 +354,100 @@ def upload_document(
         print(f"Error during upload: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
+@app.get("/documents/{org_id}")
+def list_documents(
+    org_id: uuid.UUID,
+    user_id: uuid.UUID = Query(...),
+    db: Session = Depends(get_db)
+):
+    """List all documents for an organization (admin only)"""
+    # Verify user is admin of the organization
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if str(user.organization_id) != str(org_id):
+        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+    if (user.role or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can list documents")
+
+    # Get documents with chunk count
+    documents = db.query(Document).filter(Document.organization_id == org_id).all()
+    
+    result = []
+    for doc in documents:
+        chunk_count = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).count()
+        result.append({
+            "id": str(doc.id),
+            "filename": doc.filename,
+            "filetype": doc.filetype,
+            "uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None,
+            "chunk_count": chunk_count,
+            "uploaded_by": str(doc.uploaded_by) if doc.uploaded_by else None
+        })
+    
+    return {"documents": result}
+
+@app.delete("/documents/{document_id}")
+def delete_document(
+    document_id: uuid.UUID,
+    user_id: uuid.UUID = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Delete a document (admin only)"""
+    # Get the document first to check organization
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Verify user is admin of the organization
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if str(user.organization_id) != str(document.organization_id):
+        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+    if (user.role or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete documents")
+
+    try:
+        # Delete the document (cascades to chunks due to relationship)
+        db.delete(document)
+        db.commit()
+        return {"message": "Document deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+@app.post("/change-password")
+def change_password(
+    user_id: uuid.UUID = Form(...),
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    from admin_auth import hash_password, verify_password
+    
+    # Get user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not verify_password(current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Hash new password
+    new_password_hash = hash_password(new_password)
+    
+    # Update password
+    try:
+        user.password_hash = new_password_hash
+        db.commit()
+        return {"message": "Password changed successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")
+    
 # ---------- Misc ----------
 @app.get("/test", response_class=HTMLResponse)
 def home():

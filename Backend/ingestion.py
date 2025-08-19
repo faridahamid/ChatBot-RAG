@@ -164,7 +164,7 @@ def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
 
 def embed_query(question: str) -> List[float]:
  
-    out = _model.encode_queries(
+    out = _model.encode(
         [question],
         batch_size=1,
         return_dense=True,

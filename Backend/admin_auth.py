@@ -952,7 +952,6 @@ def get_admin_profile(user_id: uuid.UUID, db: Session = Depends(get_db)):
 class UserLoginRequest(BaseModel):
     username: str
     password: str
-    role: str = Field(..., pattern="^(admin|user)$")
 
 class CreateUserRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -1025,8 +1024,7 @@ def user_login(
     request: UserLoginRequest,
     db: Session = Depends(get_db)
 ):
-    """Login for users (both admin and regular users)"""
-    
+    """Login for users (admin or regular) with username and password only"""
     # Find user by username
     user = db.query(User).filter(User.username == request.username, User.is_active == True).first()
     if not user:
@@ -1034,29 +1032,22 @@ def user_login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
-    
+
     # Verify password
     if not verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
-    
-    # Check if user role matches requested role
-    if user.role != request.role:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied. You are registered as a {user.role}, not {request.role}."
-        )
-    
-    # Get organization info
+
+    # Ensure user's organization is active
     organization = db.query(Organization).filter(Organization.id == user.organization_id, Organization.is_active == True).first()
     if not organization:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Organization is inactive"
         )
-    
+
     return {
         "message": "Login successful",
         "user_id": user.id,

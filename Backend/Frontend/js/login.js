@@ -44,28 +44,7 @@ function setupEventListeners() {
  * Select a role for login
  * @param {string} role - Role to select (admin or user)
  */
-function selectRole(role) {
-  // Remove previous selection
-  document.querySelectorAll(".role-option").forEach((option) => {
-    option.classList.remove("selected");
-  });
-
-  // Select new role
-  const selectedOption = document.querySelector(
-    `[onclick="selectRole('${role}')"]`
-  );
-  if (selectedOption) {
-    selectedOption.classList.add("selected");
-  }
-
-  // Set radio button value
-  const radioButton = document.getElementById(`${role}Role`);
-  if (radioButton) {
-    radioButton.checked = true;
-  }
-
-  console.log(`Role selected: ${role}`);
-}
+// Role selection removed; login no longer requires role
 
 // ========================================
 // LOGIN HANDLING
@@ -87,12 +66,7 @@ async function handleLogin(event) {
   const formData = new FormData(form);
   const username = formData.get("username");
   const password = formData.get("password");
-  const role = formData.get("role");
-
-  if (!role) {
-    showError("Please select a role.");
-    return;
-  }
+  // No role required
 
   // Disable login button and show loading state
   const loginBtn = document.getElementById("loginBtn");
@@ -101,7 +75,7 @@ async function handleLogin(event) {
   loginBtn.textContent = "Logging in...";
 
   try {
-    await performLogin(username, password, role);
+    await performLogin(username, password);
   } catch (error) {
     console.error("Login failed:", error);
     showError("Login failed. Please try again.");
@@ -118,49 +92,35 @@ async function handleLogin(event) {
  * @param {string} password - Password
  * @param {string} role - User role
  */
-async function performLogin(username, password, role) {
-  let endpoint;
-  let requestData;
-
-  if (role === "admin") {
-    // Admin login using form data
-    endpoint = "/admin/login";
-    requestData = {
-      method: "POST",
-      body: new URLSearchParams({
-        username: username,
-        password: password,
-        role: role,
-      }),
-    };
-  } else {
-    // User login using JSON
-    endpoint = "/admin/user/login";
-    requestData = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username: username,
-        password: password,
-        role: role,
-      }),
-    };
-  }
+async function performLogin(username, password) {
+  const headers = { "Content-Type": "application/json" };
+  const body = JSON.stringify({ username, password });
 
   try {
-    const response = await fetch(endpoint, requestData);
-    const data = await response.json();
+    let response = await fetch("/admin/user/login", {
+      method: "POST",
+      headers,
+      body,
+    });
+    let data = await response.json();
+
+    if (!response.ok && response.status === 401) {
+      response = await fetch("/admin/super-admin/login", {
+        method: "POST",
+        headers,
+        body,
+      });
+      data = await response.json();
+    }
 
     if (response.ok) {
       // Store user data in session
       const userData = {
-        id: data.user.id,
-        username: data.user.username,
-        role: data.user.role,
-        organization_id: data.user.organization_id,
-        organization_name: data.user.organization_name,
+        id: data.user_id ?? data.user?.id,
+        username: data.username ?? data.user?.username,
+        role: data.role ?? data.user?.role,
+        organization_id: data.organization_id ?? data.user?.organization_id,
+        organization_name: data.organization_name ?? data.user?.organization_name,
       };
 
       sessionStorage.setItem("user", JSON.stringify(userData));
@@ -169,10 +129,10 @@ async function performLogin(username, password, role) {
 
       // Redirect based on role
       setTimeout(() => {
-        if (data.user.role === "admin") {
-          window.location.href = "/dashboard"; // Admin goes to dashboard
+        if ((data.role ?? data.user?.role) === "super-admin") {
+          window.location.href = "/super-admin";
         } else {
-          window.location.href = "/dashboard"; // Users go to dashboard
+          window.location.href = "/dashboard";
         }
       }, 1500);
     } else {
@@ -209,7 +169,6 @@ async function performLogin(username, password, role) {
 function validateLoginForm(form) {
   const username = form.querySelector("#username").value.trim();
   const password = form.querySelector("#password").value.trim();
-  const role = form.querySelector("input[name='role']:checked");
 
   if (!username) {
     showError("Username is required.");
@@ -218,11 +177,6 @@ function validateLoginForm(form) {
 
   if (!password) {
     showError("Password is required.");
-    return false;
-  }
-
-  if (!role) {
-    showError("Please select a role.");
     return false;
   }
 
@@ -240,15 +194,6 @@ function clearLoginForm() {
   const form = document.getElementById("loginForm");
   if (form) {
     clearForm(form);
-
-    // Clear role selection
-    document.querySelectorAll(".role-option").forEach((option) => {
-      option.classList.remove("selected");
-    });
-
-    document.querySelectorAll('input[name="role"]').forEach((radio) => {
-      radio.checked = false;
-    });
   }
 }
 

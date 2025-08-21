@@ -361,7 +361,7 @@ def process_document_from_bytes(
                 print(f"Saved {len(slice_objs)} chunks to database")
     except Exception as e:
         print(f"Error during chunk processing: {e}")
-        # Rollback the document creation if chunking fails
+        
         db.rollback()
         raise Exception(f"Failed to process document chunks: {e}")
 

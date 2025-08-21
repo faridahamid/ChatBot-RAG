@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import List
+from typing import List, Optional
 
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -16,9 +16,14 @@ from ingestion import process_document, process_document_from_bytes, embed_query
 from llm import get_gemini, make_prompt
 from admin_auth import router as admin_router
 
-# Language detection for output control
-# pip install langdetect
+
 from langdetect import detect
+
+
+from faster_whisper import WhisperModel
+import soundfile as sf
+from scipy.signal import resample_poly
+import io
 
 app = FastAPI(title="Multi-Org RAG Backend")
 
@@ -29,7 +34,17 @@ app.add_middleware(
 
 app.include_router(admin_router)
 
-# ---------- FRONTEND ROUTES ----------
+
+WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small") 
+WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")      
+
+try:
+    whisper_model = WhisperModel(WHISPER_MODEL_NAME, device=WHISPER_DEVICE, compute_type="int8")
+    print(f"Whisper loaded: {WHISPER_MODEL_NAME} on {WHISPER_DEVICE}")
+except Exception as e:
+    raise RuntimeError(f"Failed to load Whisper model: {e}")
+
+
 @app.get("/", response_class=HTMLResponse)
 def welcome_page():
     try:
@@ -77,6 +92,7 @@ def admin_users_page():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Admin users page not found</h1>", status_code=404)
+
 @app.get("/super-admin", response_class=HTMLResponse)
 def super_admin_page():
     """Serve the super admin page"""
@@ -103,9 +119,8 @@ def change_password_page():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Password change page not found</h1>", status_code=404)
-    
-    
-# ---------- STATIC ----------
+
+
 @app.get("/css/{filename}")
 def get_css(filename: str):
     try:
@@ -120,39 +135,75 @@ def get_js(filename: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="JavaScript file not found")
 
+# ---------- STT API ----------
+@app.post("/stt")
+async def stt(file: UploadFile = File(...), translate: Optional[bool] = False):
+   
+    
+    try:
+        audio_bytes = await file.read()
+
+       
+        data, sr = sf.read(io.BytesIO(audio_bytes), dtype="float32", always_2d=True)
+
+        # Convert to mono
+        if data.shape[1] > 1:
+            data = np.mean(data, axis=1)
+        else:
+            data = data[:, 0]
+
+       
+        if sr != 16000:
+            from math import gcd
+            g = gcd(16000, sr)
+            up, down = 16000 // g, sr // g
+            data = resample_poly(data, up, down)
+
+       
+        task = "translate" if translate else "transcribe"
+        segments, info = whisper_model.transcribe(
+            data,
+            language=None,  
+            task=task,
+            vad_filter=True,
+            beam_size=5
+        )
+        text_out = "".join(seg.text for seg in segments).strip()
+
+        return JSONResponse({
+            "text": text_out,
+            "lang": info.language,                             
+            "lang_prob": float(info.language_probability or 0)
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"STT error: {e}")
+
 # ---------- CHAT MANAGEMENT API ----------
 @app.post("/chats", response_model=dict)
 def create_chat(payload: dict, db: Session = Depends(get_db)):
-   
     user_id = payload.get("user_id")
     if not user_id:
         raise HTTPException(status_code=400, detail="user_id is required")
-    
-    
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-   
+
     chat = Chat(user_id=user_id, title="New Chat")
     db.add(chat)
     db.commit()
     db.refresh(chat)
-    
+
     return {"chat_id": str(chat.id), "title": chat.title, "created_at": chat.created_at.isoformat()}
 
-@app.get("/chats/{user_id}", response_model=list)
+@app.get("/chats/{user_id}", response_class=JSONResponse)
 def get_user_chats(user_id: str, db: Session = Depends(get_db)):
-    
-    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    
+
     chats = db.query(Chat).filter(Chat.user_id == user_id).order_by(Chat.created_at.desc()).all()
-    
-    return [
+    return JSONResponse([
         {
             "chat_id": str(chat.id),
             "title": chat.title,
@@ -160,19 +211,16 @@ def get_user_chats(user_id: str, db: Session = Depends(get_db)):
             "message_count": len(chat.messages)
         }
         for chat in chats
-    ]
+    ])
 
 @app.get("/chats/{chat_id}/messages", response_model=list)
 def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
-    
-   
     chat = db.query(Chat).filter(Chat.id == chat_id).first()
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    
-    
+
     messages = db.query(ChatMessage).filter(ChatMessage.chat_id == chat_id).order_by(ChatMessage.created_at).all()
-    
+
     return [
         {
             "id": str(msg.id),
@@ -186,16 +234,13 @@ def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
 
 @app.delete("/chats/{chat_id}")
 def delete_chat(chat_id: str, db: Session = Depends(get_db)):
-    
-    
     chat = db.query(Chat).filter(Chat.id == chat_id).first()
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    
-    
+
     db.delete(chat)
     db.commit()
-    
+
     return {"message": "Chat deleted successfully"}
 
 # ---------- RAG API ----------
@@ -207,20 +252,21 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     if str(user.organization_id) != str(payload.org_id):
         raise HTTPException(status_code=403, detail="User does not belong to this organization")
-    if (user.role or "").lower() != "user":
-        return AskResponse(answer="You are an admin; you can't ask questions in this interface.")
+    role = (user.role or "").lower()
+    if role not in ("user", "admin"):
+        return AskResponse(answer="Your role is not permitted to use the chat.")
 
-    # Detect query language (ar/en/...)
+    
     try:
         qlang = detect(payload.question)
     except Exception:
         qlang = "en"
 
-    # Embed query with bge-m3 (encode_queries)
+    
     qvec = embed_query(payload.question)
     qvec_np = np.array(qvec, dtype=np.float32)
 
-    # Retrieve many, trim later
+   
     top_k = int(os.getenv("RAG_TOP_K", "40"))
     sql = text(
         f"""
@@ -238,13 +284,13 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     )
     rows = db.execute(sql, {"q": qvec_np.tolist(), "org": str(payload.org_id)}).fetchall()
 
-    def row2score(r):  # cosine distance -> similarity
+    def row2score(r):
         return max(0.0, 1.0 - float(r.distance))
 
     snippets: List[str] = [r.content for r in rows]
     scores = [row2score(r) for r in rows]
 
-    # Fallback: if no rows or weak top hit, translate query->English and retry once
+    
     refusal_threshold = float(os.getenv("RAG_REFUSAL_THRESHOLD", "0.40"))
     need_fallback = (not rows) or (scores and scores[0] < refusal_threshold)
     if need_fallback:
@@ -264,7 +310,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    # If still nothing, reply honestly (in user language) per RAG rules
+    
     if not rows:
         msg = (
             "لا أملك معلومات حول هذا الموضوع في قاعدة معرفة هذه المؤسسة."
@@ -273,7 +319,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         )
         return AskResponse(answer=msg)
 
-    # Build grounded prompt and ask Gemini (lock output language)
+    
     keep = int(os.getenv("RAG_LLM_SNIPPETS", "8"))
     lang_label = "Arabic" if qlang == "ar" else "English"
     prompt = make_prompt(payload.question, snippets[:keep], lang_hint=lang_label)
@@ -285,22 +331,35 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {e}")
 
-    # Persist the exchange (best-effort)
+   
     try:
-        # Use existing chat if chat_id provided, otherwise create new chat
         if payload.chat_id:
             chat = db.query(Chat).filter(Chat.id == payload.chat_id, Chat.user_id == payload.user_id).first()
             if not chat:
                 raise HTTPException(status_code=404, detail="Chat not found or access denied")
         else:
-            chat = Chat(user_id=payload.user_id, title=payload.question[:80])
-            db.add(chat)
-            db.flush()
-        
-        # Add user message
+           
+            chat = (
+                db.query(Chat)
+                .filter(Chat.user_id == payload.user_id)
+                .order_by(Chat.created_at.desc())
+                .first()
+            )
+            if not chat:
+                chat = Chat(user_id=payload.user_id, title=payload.question[:80])
+                db.add(chat)
+                db.flush()
+
+       
+        try:
+            msg_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
+            if (msg_count == 0) or (not chat.title) or (chat.title.strip().lower() == "new chat"):
+                chat.title = payload.question[:80]
+        except Exception:
+            pass
+
         db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
-        
-        # Add assistant message with citations
+
         citations = [
             {"chunk_id": str(r.chunk_id), "filename": r.filename, "score": max(0.0, 1.0 - float(r.distance))}
             for r in rows[:keep]
@@ -312,6 +371,25 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         print(f"Error persisting chat: {e}")
 
     return AskResponse(answer=answer_text.strip())
+
+@app.put("/chats/{chat_id}/title", response_class=JSONResponse)
+def rename_chat(chat_id: str, payload: dict, db: Session = Depends(get_db)):
+   
+    user_id = payload.get("user_id")
+    new_title = (payload.get("title") or "").strip()
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if not new_title:
+        raise HTTPException(status_code=400, detail="title is required")
+
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found or access denied")
+
+    chat.title = new_title[:120]
+    db.commit()
+    db.refresh(chat)
+    return JSONResponse({"chat_id": str(chat.id), "title": chat.title})
 
 # ---------- Upload ----------
 @app.post("/upload", response_model=UploadResponse)
@@ -331,9 +409,9 @@ def upload_document(
 
     filetype = file.filename.split(".")[-1]
     file_bytes = file.file.read()
-    
+
     print(f"Processing upload: {file.filename} ({len(file_bytes)} bytes)")
-    
+
     try:
         result = process_document_from_bytes(
             db=db,
@@ -361,7 +439,6 @@ def list_documents(
     db: Session = Depends(get_db)
 ):
     """List all documents for an organization (admin only)"""
-    # Verify user is admin of the organization
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -370,9 +447,8 @@ def list_documents(
     if (user.role or "").lower() != "admin":
         raise HTTPException(status_code=403, detail="Only admins can list documents")
 
-    # Get documents with chunk count
     documents = db.query(Document).filter(Document.organization_id == org_id).all()
-    
+
     result = []
     for doc in documents:
         chunk_count = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).count()
@@ -384,7 +460,7 @@ def list_documents(
             "chunk_count": chunk_count,
             "uploaded_by": str(doc.uploaded_by) if doc.uploaded_by else None
         })
-    
+
     return {"documents": result}
 
 @app.delete("/documents/{document_id}")
@@ -394,12 +470,10 @@ def delete_document(
     db: Session = Depends(get_db)
 ):
     """Delete a document (admin only)"""
-    # Get the document first to check organization
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    
-    # Verify user is admin of the organization
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -409,7 +483,6 @@ def delete_document(
         raise HTTPException(status_code=403, detail="Only admins can delete documents")
 
     try:
-        # Delete the document (cascades to chunks due to relationship)
         db.delete(document)
         db.commit()
         return {"message": "Document deleted successfully"}
@@ -417,81 +490,7 @@ def delete_document(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
-@app.post("/change-password")
-def change_password(
-    user_id: uuid.UUID = Form(...),
-    current_password: str = Form(...),
-    new_password: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    """Change user password"""
-    from admin_auth import hash_password, verify_password
-    
-    # Get user
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Verify current password
-    if not verify_password(current_password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Current password is incorrect")
-    
-    # Hash new password
-    new_password_hash = hash_password(new_password)
-    
-    # Update password
-    try:
-        user.password_hash = new_password_hash
-        db.commit()
-        return {"message": "Password changed successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")
-    
-# ---------- Misc ----------
-@app.get("/test", response_class=HTMLResponse)
-def home():
-    return """
-<!DOCTYPE html>
-<html>
-  <body>
-    <h2>Upload Test</h2>
-    <form id="uploadForm" enctype="multipart/form-data" method="post" action="/upload">
-      <input type="text" name="org_id" placeholder="Organization ID" required><br><br>
-      <input type="text" name="user_id" placeholder="User ID" required><br><br>
-      <input type="file" name="file" required><br><br>
-      <button type="submit">Upload</button>
-    </form>
 
-    <hr/>
-
-    <h2>Ask (RAG)</h2>
-    <form id="askForm">
-      <input type="text" id="org_id" placeholder="Organization ID" required><br><br>
-      <input type="text" id="user_id" placeholder="User ID" required><br><br>
-      <textarea id="question" placeholder="Your question..." rows="4" cols="60" required></textarea><br><br>
-      <button type="submit">Ask</button>
-    </form>
-    <pre id="answer"></pre>
-
-    <script>
-      document.getElementById('askForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const org_id = document.getElementById('org_id').value;
-        const user_id = document.getElementById('user_id').value;
-        const question = document.getElementById('question').value;
-        const res = await fetch('/ask', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ org_id, user_id, question })
-        });
-         const data = await res.json();
-         document.getElementById('answer').textContent = data.answer || JSON.stringify(data);
-      });
-    </script>
-  </body>
-</html>
-    """
 
 @app.on_event("startup")
 def _ensure_indexes():
@@ -518,15 +517,15 @@ def _ensure_indexes():
             """
         ))
 
-@app.post("/orgs", response_model=dict)
+@app.post("/orgs", response_class=JSONResponse)
 def create_org(payload: OrgCreate, db: Session = Depends(get_db)):
     org = Organization(name=payload.name, description=payload.description)
     db.add(org)
     db.commit()
     db.refresh(org)
-    return {"id": org.id, "name": org.name}
+    return JSONResponse({"id": org.id, "name": org.name})
 
-@app.post("/users", response_model=dict)
+@app.post("/users", response_class=JSONResponse)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     from admin_auth import hash_password
     existing_user = db.query(User).filter(User.username == payload.username).first()
@@ -542,7 +541,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"id": user.id, "username": user.username}
+    return JSONResponse({"id": user.id, "username": user.username})
 
 @app.get("/health")
 def health_check():

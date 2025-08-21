@@ -14,16 +14,15 @@ from models import Document, DocumentChunk
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-# ---------------- Model config (MiniLM) ----------------
-# Loads by HF model ID; first run downloads & caches automatically.
+
 EMBEDDING_MODEL = os.getenv(
     "EMBEDDING_MODEL",
     "sentence-transformers/distiluse-base-multilingual-cased-v2"
 )
 
-# Set to "cuda" to use GPU if available, otherwise "cpu"
-ST_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip().lower()  # "cpu" | "cuda"
-ST_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "64"))      # effective encode batch
+
+ST_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip().lower() 
+ST_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "64"))     
 
 _model: Optional[SentenceTransformer] = None
 try:
@@ -55,7 +54,7 @@ def _read_csv(path: str) -> str:
         lines.append(line)
     return "\n".join(lines)
 
-# In-memory readers
+
 def _read_pdf_bytes(data: bytes) -> str:
     reader = PdfReader(io.BytesIO(data))
     return "\n".join([(p.extract_text() or "") for p in reader.pages])
@@ -191,10 +190,9 @@ def process_document(
     filetype: str,
     chunk_size: int = 800,
     chunk_overlap: int = 100,
-    embedding_batch_size: int = 64,   # kept for API compatibility
+    embedding_batch_size: int = 64,   
     insert_batch_size: int = 200,
 ):
-    # Read + dedupe per org
     text_all = extract_text(file_path, filetype)
     normalized = _normalize_text_for_hash(text_all)
     content_hash = _sha256_hex(normalized)
@@ -216,7 +214,7 @@ def process_document(
         content_hash=content_hash,
     )
     db.add(doc)
-    db.flush()  # get doc.id
+    db.flush()  
 
     chunks = chunk_text(text_all, max_chars=chunk_size, overlap=chunk_overlap)
     total = len(chunks)
@@ -227,7 +225,7 @@ def process_document(
         return {"document_id": doc.id, "chunks": 0}
 
     try:
-        # Effective batch size: min of provided arg and env-configured ST_BATCH_SIZE
+       
         bs = min(embedding_batch_size, ST_BATCH_SIZE)
         for start in range(0, total, bs):
             end = min(start + bs, total)

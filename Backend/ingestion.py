@@ -8,34 +8,28 @@ import pandas as pd
 from pypdf import PdfReader
 import docx
 from sqlalchemy.orm import Session
-
+from sentence_transformers import SentenceTransformer
 from models import Document, DocumentChunk
 
-from FlagEmbedding import BGEM3FlagModel
+# from FlagEmbedding import BGEM3FlagModel
 import numpy as np
 
-LOCAL_BGE_DIR = r"C:\hf\models\BAAI\bge-m3" 
-EMBEDDING_MODEL = (
-    LOCAL_BGE_DIR if os.path.isdir(LOCAL_BGE_DIR)
-    else os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_MODEL = os.getenv(
+    "EMBEDDING_MODEL",
+    "sentence-transformers/distiluse-base-multilingual-cased-v2"
 )
 
-BGE_DEVICE = os.getenv("BGE_DEVICE", "cpu") 
+# Set to "cuda" to use GPU if available, otherwise "cpu"
+ST_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip().lower()  # "cpu" | "cuda"
+ST_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "64"))      # effective encode batch
 
-
+_model: Optional[SentenceTransformer] = None
 try:
-    print(f"Loading embedding model from: {EMBEDDING_MODEL}")
-    _model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True, device=BGE_DEVICE)
+    print(f"Loading embedding model: {EMBEDDING_MODEL} on device={ST_DEVICE}")
+    _model = SentenceTransformer(EMBEDDING_MODEL, device=ST_DEVICE)
     print("Embedding model loaded successfully")
 except Exception as e:
-    print(f"Error loading embedding model: {e}")
-    print("Falling back to CPU-only model...")
-    try:
-        _model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, device="cpu")
-        print("CPU-only embedding model loaded successfully")
-    except Exception as e2:
-        print(f"Failed to load embedding model: {e2}")
-        raise Exception(f"Could not load embedding model: {e2}")
+    raise RuntimeError(f"Could not load embedding model: {e}")
 
 # ---------- File readers ----------
 def _read_pdf(path: str) -> str:
@@ -138,45 +132,68 @@ def chunk_text(text: str, max_chars: int = 800, overlap: int = 100) -> List[str]
     print(f"Created {len(chunks)} chunks")
     return chunks
 
-def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
+# def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
     
+#     try:
+#         print(f"Embedding {len(texts)} text chunks...")
+#         out = _model.encode(
+#             texts,
+#             batch_size=max(1, len(texts)),
+#             return_dense=True,
+#             return_sparse=False,
+#             return_colbert_vecs=False,
+#         )
+#         vecs = out["dense_vecs"]
+#         # Convert to numpy array and L2-normalize
+#         vecs_np = np.array(vecs, dtype=np.float32)
+#         norms = np.linalg.norm(vecs_np, axis=1, keepdims=True)
+#         norms = np.clip(norms, 1e-12, None)
+#         vecs_np = vecs_np / norms
+#         result = vecs_np.tolist()
+#         print(f"Successfully embedded {len(result)} chunks")
+#         return result
+#     except Exception as e:
+#         print(f"Error during embedding: {e}")
+#         raise Exception(f"Embedding failed: {e}")
+
+def _embed_passages_batch(texts: List[str]) -> List[List[float]]:
     try:
         print(f"Embedding {len(texts)} text chunks...")
-        out = _model.encode(
+        vecs = _model.encode(
             texts,
             batch_size=max(1, len(texts)),
-            return_dense=True,
-            return_sparse=False,
-            return_colbert_vecs=False,
+            normalize_embeddings=True,   # auto L2 normalize
         )
-        vecs = out["dense_vecs"]
-        # Convert to numpy array and L2-normalize
-        vecs_np = np.array(vecs, dtype=np.float32)
-        norms = np.linalg.norm(vecs_np, axis=1, keepdims=True)
-        norms = np.clip(norms, 1e-12, None)
-        vecs_np = vecs_np / norms
-        result = vecs_np.tolist()
+        result = vecs.tolist()
         print(f"Successfully embedded {len(result)} chunks")
         return result
     except Exception as e:
         print(f"Error during embedding: {e}")
         raise Exception(f"Embedding failed: {e}")
 
-def embed_query(question: str) -> List[float]:
+# def embed_query(question: str) -> List[float]:
  
-    out = _model.encode(
+#     out = _model.encode(
+#         [question],
+#         batch_size=1,
+#         return_dense=True,
+#         return_sparse=False,
+#         return_colbert_vecs=False,
+#     )
+#     v = out["dense_vecs"][0]
+#     v_np = np.array(v, dtype=np.float32)
+#     norm = float(np.linalg.norm(v_np))
+#     norm = max(norm, 1e-12)
+#     v_np = v_np / norm
+#     return v_np.tolist()
+
+def embed_query(question: str) -> List[float]:
+    v = _model.encode(
         [question],
         batch_size=1,
-        return_dense=True,
-        return_sparse=False,
-        return_colbert_vecs=False,
-    )
-    v = out["dense_vecs"][0]
-    v_np = np.array(v, dtype=np.float32)
-    norm = float(np.linalg.norm(v_np))
-    norm = max(norm, 1e-12)
-    v_np = v_np / norm
-    return v_np.tolist()
+        normalize_embeddings=True,
+    )[0]
+    return v.tolist()
 
 # ---------- Hash helpers ----------
 def extract_text_from_raw(raw_text: Optional[str]) -> str:

@@ -1,7 +1,7 @@
 # models.py
 import uuid
 import enum
-from sqlalchemy import Column, Text, TIMESTAMP, ForeignKey, Enum, Integer
+from sqlalchemy import Column, Text, TIMESTAMP, ForeignKey, Enum, Integer, Boolean, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base, relationship
@@ -21,7 +21,7 @@ class Organization(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(Text, unique=True, nullable=False)
     description = Column(Text)
-
+    is_active = Column(Boolean, default=True, server_default=text("true"), nullable=False)
     
     users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="organization", cascade="all, delete-orphan")
@@ -36,6 +36,7 @@ class User(Base):
     role = Column(Text, nullable=False)  # values enforced by DB CHECK
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True, server_default=text("true"), nullable=False)
 
     organization = relationship("Organization", back_populates="users")
     documents = relationship("Document", back_populates="uploader")
@@ -64,7 +65,7 @@ class DocumentChunk(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1024), nullable=False)  # pgvector column; dim must match your embed model
+    embedding = Column(Vector(512), nullable=False)  # pgvector column; dim must match your embed model
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     document = relationship("Document", back_populates="chunks")

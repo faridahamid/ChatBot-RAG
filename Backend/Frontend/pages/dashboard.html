@@ -5,6 +5,187 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard - RAG ChatBot</title>
     <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+      .feedback-section {
+        margin-top: 15px;
+        padding: 15px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+      }
+      
+      .feedback-section:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+      }
+      
+      .feedback-toggle-btn {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+      }
+      
+      .feedback-toggle-btn:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,123,255,0.4);
+      }
+      
+      .feedback-form {
+        display: none;
+        margin-top: 15px;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        animation: slideDown 0.3s ease-out;
+      }
+      
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      .feedback-form .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      
+      .feedback-form label {
+        font-weight: 600;
+        color: #495057;
+        min-width: 80px;
+        font-size: 0.9em;
+      }
+      
+      .feedback-form select {
+        padding: 8px 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        background: white;
+        color: #495057;
+        font-size: 0.9em;
+        transition: all 0.3s ease;
+        min-width: 120px;
+      }
+      
+      .feedback-form select:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+      }
+      
+      .feedback-form textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        resize: vertical;
+        font-family: inherit;
+        font-size: 0.9em;
+        color: #495057;
+        transition: all 0.3s ease;
+        background: #fafbfc;
+      }
+      
+      .feedback-form textarea:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        background: white;
+      }
+      
+      .feedback-form textarea::placeholder {
+        color: #adb5bd;
+        font-style: italic;
+      }
+      
+      .feedback-form .actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 15px;
+      }
+      
+      .feedback-submit-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(40,167,69,0.3);
+      }
+      
+      .feedback-submit-btn:hover {
+        background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40,167,69,0.4);
+      }
+      
+      .feedback-cancel-btn {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(108,117,125,0.3);
+      }
+      
+      .feedback-cancel-btn:hover {
+        background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(108,117,125,0.4);
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .feedback-form .row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        
+        .feedback-form label {
+          min-width: auto;
+        }
+        
+        .feedback-form .actions {
+          flex-direction: column;
+        }
+        
+        .feedback-form select,
+        .feedback-form textarea {
+          width: 100%;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -123,6 +304,14 @@
         >
            Manage Documents
         </button>
+        <button
+          class="btn admin-btn"
+          id="adminFeedbackActions"
+          onclick="window.location.href='/admin-feedback'"
+          style="display: none"
+        >
+           📊 View Feedbacks
+        </button>
         <button class="btn" onclick="window.location.href='/change-password'" style="background: linear-gradient(45deg, #17a2b8, #138496);">🔐 Change Password</button>
         <button class="btn logout-btn" onclick="logout()">Logout</button>
       </div>
@@ -160,6 +349,8 @@
               document.getElementById("adminUserActions").style.display =
                 "inline-block";
               document.getElementById("adminDocumentActions").style.display =
+                "inline-block";
+              document.getElementById("adminFeedbackActions").style.display =
                 "inline-block";
               
               document.getElementById("chatSection").style.display = "block";
@@ -299,7 +490,7 @@
             
             
             messages.forEach(msg => {
-              addMessage(msg.content, msg.role, new Date(msg.created_at));
+              addMessage(msg.content, msg.role, new Date(msg.created_at), msg.id);
             });
             
             
@@ -328,15 +519,50 @@
         }
       }
 
-      function addMessage(content, role, timestamp = new Date()) {
+      function addMessage(content, role, timestamp = new Date(), messageId = null) {
         const chatMessages = document.getElementById("chatMessages");
         const messageDiv = document.createElement("div");
         messageDiv.className = `message-bubble ${role}`;
+        if (messageId) {
+          messageDiv.setAttribute("data-message-id", messageId);
+        }
 
         const timeStr = timestamp.toLocaleTimeString();
+        
+        // Add feedback section for assistant messages
+        let feedbackSection = '';
+        if (role === 'assistant' && messageId) {
+          feedbackSection = `
+            <div class="feedback-section">
+              <button class="feedback-toggle-btn" onclick="toggleFeedbackForm('${messageId}')">💬 Give feedback</button>
+              <div class="feedback-form" id="feedback-form-${messageId}">
+                <div class="row">
+                  <label for="rating-${messageId}">Rating (1-5):</label>
+                  <select id="rating-${messageId}">
+                    <option value="">No rating</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                  </select>
+                </div>
+                <div class="row">
+                  <textarea id="comment-${messageId}" placeholder="Write a comment (optional)"></textarea>
+                </div>
+                <div class="actions">
+                  <button class="feedback-submit-btn" onclick="submitInlineFeedback('${messageId}')">Submit</button>
+                  <button class="feedback-cancel-btn" onclick="toggleFeedbackForm('${messageId}', false)">Cancel</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
         messageDiv.innerHTML = `
           <div>${content}</div>
           <div class="timestamp">${timeStr}</div>
+          ${feedbackSection}
         `;
 
         chatMessages.appendChild(messageDiv);
@@ -431,10 +657,11 @@
           loadingDiv.remove();
 
           if (response.ok) {
-            addMessage(data.answer, "assistant");
-            
-           
-            if (!currentChatId) {
+            // After sending, reload the chat to get server-generated message IDs
+            if (currentChatId) {
+              await loadChat(currentChatId);
+            } else {
+              // If a chat wasn't set, history will update with a new chat; reload history
               loadChatHistory();
             }
           } else {
@@ -634,6 +861,55 @@
         messageDiv.textContent = message;
         messageDiv.className = `message ${type}`;
         messageDiv.style.display = "block";
+      }
+
+      // Feedback functions (inline button + form)
+      function toggleFeedbackForm(messageId, forceState) {
+        const form = document.getElementById(`feedback-form-${messageId}`);
+        if (!form) return;
+        const show = typeof forceState === 'boolean' ? forceState : form.style.display !== 'block';
+        form.style.display = show ? 'block' : 'none';
+      }
+
+      async function submitInlineFeedback(messageId) {
+        if (!user || !currentChatId) return;
+        const ratingEl = document.getElementById(`rating-${messageId}`);
+        const commentEl = document.getElementById(`comment-${messageId}`);
+        if (!ratingEl || !commentEl) return;
+        const ratingVal = ratingEl.value ? parseInt(ratingEl.value, 10) : null;
+        const commentVal = commentEl.value.trim() || null;
+
+        // If neither rating nor comment provided, do nothing (fully optional)
+        if (ratingVal === null && !commentVal) {
+          toggleFeedbackForm(messageId, false);
+          return;
+        }
+
+        try {
+          const response = await fetch("/feedbacks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: currentChatId,
+              message_id: messageId,
+              user_id: user.id,
+              rating: ratingVal,
+              comment: commentVal
+            })
+          });
+          if (response.ok) {
+            showMessage("Feedback submitted. Thanks!", "success");
+            toggleFeedbackForm(messageId, false);
+            ratingEl.value = "";
+            commentEl.value = "";
+          } else {
+            const error = await response.json();
+            showMessage(`Error: ${error.detail || 'Failed to submit feedback'}`, "error");
+          }
+        } catch (e) {
+          console.error('Feedback submit error', e);
+          showMessage("Error submitting feedback. Please try again.", "error");
+        }
       }
 
       

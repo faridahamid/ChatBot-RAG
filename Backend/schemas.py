@@ -59,3 +59,25 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    
+    
+class FeedbackCreate(BaseModel):
+    chat_id: UUID
+    message_id: UUID
+    user_id: UUID
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    comment: Optional[str] = None
+
+class FeedbackResponse(BaseModel):
+    id: UUID
+    chat_id: UUID
+    message_id: UUID
+    user_id: UUID
+    username: str
+    rating: Optional[int]
+    comment: Optional[str]
+    seen_by_admin: bool
+    created_at: str
+
+class FeedbackUpdate(BaseModel):
+    seen_by_admin: bool = True

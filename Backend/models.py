@@ -103,12 +103,14 @@ class Feedback(Base):
     chat_id = Column(UUID(as_uuid=True), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
     message_id = Column(UUID(as_uuid=True), ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    rating = Column(Integer) 
+    rating = Column(Integer, nullable=True)
     comment = Column(Text)
+    seen_by_admin = Column(Boolean, default=False, server_default=text("false"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     chat = relationship("Chat", back_populates="feedbacks")
     message = relationship("ChatMessage", back_populates="feedbacks")
+    user = relationship("User")
 
 
 class SuperAdmin(Base):

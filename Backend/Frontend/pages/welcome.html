@@ -14,21 +14,23 @@
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         line-height: 1.6;
-        color: #333;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #E9E7F1;
+        background: radial-gradient(1200px 600px at 20% -10%, rgba(151, 71, 255, 0.35), transparent 60%),
+          radial-gradient(1200px 800px at 110% 10%, rgba(82, 0, 204, 0.35), transparent 60%),
+          linear-gradient(145deg, #0f0b17 0%, #1a1226 40%, #241437 100%);
         min-height: 100vh;
       }
 
       /* Navigation */
       .navbar {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
+        background: rgba(24, 16, 37, 0.7);
+        backdrop-filter: blur(12px);
         padding: 1rem 2rem;
         position: fixed;
         top: 0;
         width: 100%;
         z-index: 1000;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
       }
 
       .nav-container {
@@ -42,7 +44,7 @@
       .logo {
         font-size: 1.5rem;
         font-weight: bold;
-        color: #667eea;
+        color: #B18CFF;
       }
 
       .nav-links {
@@ -53,18 +55,18 @@
 
       .nav-links a {
         text-decoration: none;
-        color: #333;
+        color: #E9E7F1;
         font-weight: 500;
         transition: color 0.3s ease;
       }
 
       .nav-links a:hover {
-        color: #667eea;
+        color: #B18CFF;
       }
 
       .cta-button {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
+        background: linear-gradient(135deg, #8a2be2, #5b19a6);
+        color: #fff;
         padding: 0.75rem 1.5rem;
         border-radius: 25px;
         text-decoration: none;
@@ -75,6 +77,27 @@
       .cta-button:hover {
         transform: translateY(-2px);
       }
+      /* Logo styling */
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* space between image and text */
+}
+
+.logo-image {
+  height: 40px;   /* adjust size */
+  width: 40px;
+  border-radius: 50%; /* makes it round */
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.logo-text {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #B18CFF;
+}
+
 
       /* Main Content */
       .main-content {
@@ -83,10 +106,27 @@
       }
 
       .hero-section {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: white;
+        padding: 6rem 2rem 4rem 2rem;
+        color: #fff;
       }
+      .hero-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        align-items: center;
+        gap: 2rem;
+      }
+      .hero-left { text-align: left; }
+      .hero-right {
+        position: relative;
+        height: 420px;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.06);
+        background: url('https://i.pinimg.com/1200x/1c/44/f8/1c44f8914b9f20e13b6168a2c2be3586.jpg') center/cover no-repeat;
+      }
+      .hero-right::after{ content:''; position:absolute; inset:0; background: radial-gradient(60% 60% at 35% 40%, rgba(138,43,226,0.25), transparent 60%);}      
 
       .hero-title {
         font-size: 3.5rem;
@@ -117,8 +157,8 @@
       }
 
       .btn-primary {
-        background: white;
-        color: #667eea;
+        background: #fff;
+        color: #5b19a6;
       }
 
       .btn-primary:hover {
@@ -129,18 +169,18 @@
 
       .btn-secondary {
         background: transparent;
-        color: white;
-        border-color: white;
+        color: #fff;
+        border-color: #ffffff;
       }
 
       .btn-secondary:hover {
         background: white;
-        color: #667eea;
+        color: #5b19a6;
       }
 
       /* Features Section */
       .features-section {
-        background: white;
+        background: #140f1e;
         padding: 4rem 2rem;
       }
 
@@ -153,48 +193,70 @@
         text-align: center;
         font-size: 2.5rem;
         margin-bottom: 3rem;
-        color: #333;
+        color: #E9E7F1;
       }
 
-      .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      .features-rail {
+        display: flex;
         gap: 2rem;
-        margin-bottom: 3rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        scroll-snap-type: x mandatory;
+      }
+      .features-rail::-webkit-scrollbar { display: none; }
+      .features-track {
+        display: flex;
+        gap: 2rem;
       }
 
       .feature-card {
-        background: #f8f9fa;
+        background: rgba(255, 255, 255, 0.05);
         padding: 2rem;
         border-radius: 15px;
         text-align: center;
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+        min-width: 320px;
+        max-width: 360px;
+        scroll-snap-align: start;
       }
 
       .feature-card:hover {
         transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        background: rgba(255,255,255,0.08);
       }
 
       .feature-icon {
         font-size: 3rem;
         margin-bottom: 1rem;
-        color: #667eea;
+        color: #B18CFF;
       }
 
       .feature-title {
         font-size: 1.5rem;
         margin-bottom: 1rem;
-        color: #333;
+        color: #fff;
       }
 
       .feature-description {
-        color: #666;
+        color: #c9c4d6;
         line-height: 1.6;
       }
+      /* Rich lists inside cards/sections */
+      .feature-list,
+      .about-list {
+        margin-top: 8px;
+        padding-left: 1.2rem;
+        text-align: left;
+        color: #c9c4d6;
+      }
+      .feature-list li,
+      .about-list li { margin: 6px 0; }
 
       /* About Section */
       .about-section {
-        background: #f8f9fa;
+        background: #0f0b17;
         padding: 4rem 2rem;
       }
 
@@ -206,15 +268,43 @@
       }
 
       .about-text h3 {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-        color: #333;
+        font-size: 2.2rem;
+        margin-bottom: 1.5rem;
+        color: #fff;
+        font-weight: 700;
+        background: linear-gradient(135deg, #fff, #fff); 
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
 
       .about-text p {
-        color: #666;
+        color: #E9E7F1;
         line-height: 1.8;
-        margin-bottom: 1rem;
+        margin-bottom: 1.2rem;
+        font-size: 1.05rem;
+      }
+
+      .about-text strong {
+        color: #B18CFF;
+        font-weight: 600;
+      }
+
+      .about-text ul {
+        margin: 1.2rem 0;
+        padding-left: 1.5rem;
+      }
+
+      .about-text li {
+        color: #c9c4d6;
+        margin: 0.8rem 0;
+        line-height: 1.6;
+        font-size: 1rem;
+      }
+
+      .about-text li strong {
+        color: #B18CFF;
+        font-weight: 600;
       }
 
       .about-image {
@@ -224,16 +314,87 @@
       .about-image img {
         max-width: 100%;
         border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
       }
 
       /* Footer */
       .footer {
-        background: #333;
-        color: white;
+        background: #0d0a14;
+        color: #c9c4d6;
         text-align: center;
         padding: 2rem;
       }
+
+      /* Login Modal */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 6, 16, 0.6);
+        backdrop-filter: blur(10px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+
+      .modal-overlay.active {
+        display: flex;
+      }
+
+      .login-modal {
+        width: 100%;
+        max-width: 460px;
+        background: rgba(26, 18, 38, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255,255,255,0.06);
+        padding: 28px;
+        color: #E9E7F1;
+      }
+
+      .login-modal .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .login-modal .header h3 { color: #ffffff; }
+
+      .close-btn {
+        background: transparent;
+        border: none;
+        color: #c9c4d6;
+        font-size: 22px;
+        cursor: pointer;
+      }
+
+      .login-modal .form-group { margin: 14px 0; }
+      .login-modal label { display: block; margin-bottom: 6px; color: #c9c4d6; }
+      .login-modal input {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+        color: #fff;
+      }
+      .login-modal input::placeholder { color: #b9b3c9; }
+
+      .login-modal .login-btn {
+        width: 100%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        background: linear-gradient(135deg, #8a2be2, #5b19a6);
+        margin-top: 10px;
+      }
+
+      .modal-message { margin: 10px 0; text-align: center; }
+      .modal-message.success { color: #47d27e; }
+      .modal-message.error { color: #f37e7e; }
 
       /* Responsive Design */
       @media (max-width: 768px) {
@@ -244,7 +405,8 @@
         .nav-links {
           display: none;
         }
-
+        .hero-wrap { grid-template-columns: 1fr; }
+        .hero-right { height: 300px; }
         .about-content {
           grid-template-columns: 1fr;
         }
@@ -255,34 +417,50 @@
         }
       }
     </style>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG ChatBot</title>
+  
+    <!-- Favicon (logo in browser title) -->
+    <link rel="icon" href="https://i.pinimg.com/1200x/c4/dd/47/c4dd475a926160c734876937ce9aafe4.jpg" type="image/png" />
   </head>
-  <body>
-    <!-- Navigation -->
-    <nav class="navbar">
-      <div class="nav-container">
-        <div class="logo">RAG ChatBot</div>
-        <ul class="nav-links">
-          <li><a href="#features">Features</a></li>
-          <li><a href="#about">About</a></li>
-          <li><a href="#contact">Contact</a></li>
-          <li><a href="/login" class="cta-button">Login</a></li>
-        </ul>
+  
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo-wrapper">
+        <img src="https://i.pinimg.com/1200x/c4/dd/47/c4dd475a926160c734876937ce9aafe4.jpg" 
+             alt="RAG ChatBot" class="logo-image">
+        <div class="logo-text">RAG ChatBot</div>
       </div>
-    </nav>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="#" id="openLogin" class="cta-button">Login</a></li>
+      </ul>
+    </div>
+  </nav>
+  
 
     <!-- Main Content -->
     <main class="main-content">
       <!-- Hero Section -->
       <section class="hero-section">
-        <h1 class="hero-title">AI-Powered Knowledge Assistant</h1>
-        <p class="hero-subtitle">
-          Transform your organization's documents into intelligent
-          conversations. Get instant, accurate answers from your knowledge base
-          using advanced AI technology.
-        </p>
-        <div class="hero-buttons">
-          <a href="/login" class="btn btn-primary">Try Our Services</a>
-          <a href="#features" class="btn btn-secondary">Learn More</a>
+        <div class="hero-wrap">
+          <div class="hero-left">
+            <h1 class="hero-title">AI-Powered Knowledge Assistant</h1>
+            <p class="hero-subtitle">
+              Transform your organization's documents into intelligent
+              conversations
+            </p>
+            <div class="hero-buttons">
+              <a href="#" id="tryNow" class="btn btn-primary">Try Our Services</a>
+              <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+          </div>
+          <div class="hero-right" aria-hidden="true"></div>
         </div>
       </section>
 
@@ -290,97 +468,94 @@
       <section id="features" class="features-section">
         <div class="container">
           <h2 class="section-title">What We Offer</h2>
-          <div class="features-grid">
-            <div class="feature-card">
-              <div class="feature-icon">🤖</div>
-              <h3 class="feature-title">AI-Powered Q&A</h3>
-              <p class="feature-description">
-                Ask questions in natural language and get intelligent answers
-                based on your organization's documents and knowledge base.
-              </p>
-            </div>
-            <div class="feature-card">
-              <div class="feature-icon">📚</div>
-              <h3 class="feature-title">Document Intelligence</h3>
-              <p class="feature-description">
-                Upload and process various document types including PDFs, Word
-                documents, and text files for comprehensive knowledge
-                extraction.
-              </p>
-            </div>
-            <div class="feature-card">
-              <div class="feature-icon">🔒</div>
-              <h3 class="feature-title">Secure & Private</h3>
-              <p class="feature-description">
-                Your data stays within your organization. Multi-tenant
-                architecture ensures complete isolation between different
-                organizations.
-              </p>
-            </div>
-            <div class="feature-card">
-              <div class="feature-icon">⚡</div>
-              <h3 class="feature-title">Real-time Responses</h3>
-              <p class="feature-description">
-                Get instant answers with our optimized retrieval system. No
-                waiting, no delays - just immediate intelligent responses.
-              </p>
-            </div>
-            <div class="feature-card">
-              <div class="feature-icon">👥</div>
-              <h3 class="feature-title">Role-Based Access</h3>
-              <p class="feature-description">
-                Different access levels for admins and users. Admins can upload
-                documents while users can ask questions and get answers.
-              </p>
-            </div>
-            <div class="feature-card">
-              <div class="feature-icon">📊</div>
-              <h3 class="feature-title">Usage Analytics</h3>
-              <p class="feature-description">
-                Track usage patterns, popular questions, and system performance
-                to optimize your knowledge management strategy.
-              </p>
+          <div class="features-rail" id="featuresRail">
+            <div class="features-track" id="featuresTrack">
+              <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3 class="feature-title">AI-Powered Q&A</h3>
+                <ul class="feature-list">
+                  <li>Natural-language queries in English, Arabic, and more.</li>
+                  <li>Answers sourced strictly from your organization’s uploaded knowledge base.</li>
+                  <li>Optional voice input (STT) for quick, hands-free questions.</li>
+                </ul>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3 class="feature-title">Document Intelligence</h3>
+                <ul class="feature-list">
+                  <li>Admins upload PDFs, Word, TXT, CSV.</li>
+                  <li>Automatic chunking, embedding, and indexing for efficient retrieval.</li>
+                  <li>Enables powerful document‑grounded responses (RAG).</li>
+                </ul>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">Secure & Private</h3>
+                <ul class="feature-list">
+                  <li>Multi-tenant isolation: organizations are fully separated.</li>
+                  <li>Role-based access controls for admins and users.</li>
+                  <li>Content hashes prevent duplicate document ingestion.</li>
+                </ul>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Real-time Responses</h3>
+                <ul class="feature-list">
+                  <li>Optimized pipeline (vector search + Gemini LLM) for instant answers.</li>
+                  <li>Fallbacks handle multilingual queries and weak retrieval gracefully.</li>
+                </ul>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3 class="feature-title">Role-Based Access</h3>
+                <ul class="feature-list">
+                  <li>Admins: Upload/manage documents, users, and feedback.</li>
+                  <li>Users: Ask questions, view chat history, interact with the assistant.</li>
+                  <li>Super‑Admins: Manage multiple organizations centrally.</li>
+                </ul>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">Usage Analytics</h3>
+                <ul class="feature-list">
+                  <li>Collect feedback on responses (ratings, comments).</li>
+                  <li>Analyze popular questions, quality metrics, and coverage.</li>
+                  <li>Drive continuous improvement of knowledge management.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       <!-- About Section -->
-      <section id="about" class="about-section">
-        <div class="container">
-          <h2 class="section-title">About Us</h2>
-          <div class="about-content">
-            <div class="about-text">
-              <h3>Revolutionizing Knowledge Management</h3>
-              <p>
-                Our RAG (Retrieval-Augmented Generation) ChatBot is designed to
-                transform how organizations interact with their knowledge base.
-                We combine the power of advanced AI with secure, scalable
-                architecture to deliver intelligent conversational experiences.
-              </p>
-              <p>
-                Whether you're a healthcare provider looking to streamline
-                patient information access, a financial institution needing
-                quick policy references, or an educational organization wanting
-                to enhance student support, our platform adapts to your specific
-                needs.
-              </p>
-              <p>
-                Built with cutting-edge technology including vector databases,
-                advanced embedding models, and state-of-the-art language models,
-                we ensure accuracy, speed, and reliability in every interaction.
-              </p>
-              <a
-                href="/login"
-                class="btn btn-primary"
-                style="display: inline-block; margin-top: 1rem"
-              >
-                Get Started Today
-              </a>
-            </div>
+<section id="about" class="about-section">
+  <div class="container">
+    <h2 class="section-title">About Us</h2>
+    <div class="about-content">
+      <div class="about-text">
+        <h3>Multi-Organization RAG Chatbot Platform</h3>
+        <p>
+          Our platform empowers organizations to deploy intelligent assistants that answer strictly from their uploaded documents, ensuring data isolation, accuracy, and trust.
+        </p>
+        <p>
+          Organizations upload their knowledge bases—policies, reports, guidelines—and users interact through text or voice, receiving context-aware answers from their organization's content only.
+        </p>
+        <ul>
+          <li><strong>Admins:</strong> Manage users, upload documents, review feedback</li>
+          <li><strong>Users:</strong> Access information conversationally with chat history</li>
+          <li><strong>Super-Admins:</strong> Oversee multiple organizations centrally</li>
+        </ul>
+        
+        <p>
+          Our goal: give every organization a private, intelligent assistant that makes knowledge easier, faster, and safer to access.
+        </p>
+      </div>
+      
+
             <div class="about-image">
               <img
-                src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjNjY3ZWVhIi8+CjxjaXJjbGUgY3g9IjIwMCIgY3k9IjE1MCIgcj0iODAiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjIiLz4KPHN2ZyB4PSIxNjAiIHk9IjExMCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9IndoaXRlIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiIvPgo8cGF0aCBkPSJNMTIgNkM5Ljc5IDYgOCA3Ljc5IDggMTBzMS43OSA0IDQgNCA0LTEuNzkgNC00LTEuNzktNC00LTR6bTAgNmMtMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJ6Ii8+Cjwvc3ZnPgo8L3N2Zz4K"
+                src="https://i.pinimg.com/originals/52/3d/95/523d950a2e02a8534734db97a212df1a.gif"
                 alt="AI Technology"
               />
             </div>
@@ -389,14 +564,37 @@
       </section>
     </main>
 
+    <!-- Login Modal -->
+    <div id="loginOverlay" class="modal-overlay" aria-hidden="true">
+      <div class="login-modal" role="dialog" aria-modal="true">
+        <div class="header">
+          <h3>Sign in</h3>
+          <button class="close-btn" id="closeLogin" aria-label="Close">×</button>
+        </div>
+        <div id="modalMessage" class="modal-message"></div>
+        <form id="modalLoginForm">
+          <div class="form-group">
+            <label for="modalUsername">Username</label>
+            <input type="text" id="modalUsername" name="username" placeholder="Enter username" required />
+          </div>
+          <div class="form-group">
+            <label for="modalPassword">Password</label>
+            <input type="password" id="modalPassword" name="password" placeholder="Enter password" required />
+          </div>
+          <button type="submit" class="login-btn" id="modalLoginBtn">Sign In</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <p>&copy; 2024 RAG ChatBot. All rights reserved.</p>
+        <p>&copy; 2025 RAG ChatBot. All rights reserved.</p>
         <p>
           Powered by advanced AI technology for intelligent knowledge
-          management.
+
         </p>
+        <p>Created By Farida Hamid and Rehab Hamdy</p>
       </div>
     </footer>
 
@@ -419,11 +617,96 @@
       window.addEventListener("scroll", function () {
         const navbar = document.querySelector(".navbar");
         if (window.scrollY > 50) {
-          navbar.style.background = "rgba(255, 255, 255, 0.98)";
+          navbar.style.background = "rgba(24, 16, 37, 0.85)";
         } else {
-          navbar.style.background = "rgba(255, 255, 255, 0.95)";
+          navbar.style.background = "rgba(24, 16, 37, 0.7)";
         }
       });
+
+      // Modal helpers
+      const overlay = document.getElementById('loginOverlay');
+      const openers = [
+        document.getElementById('openLogin'),
+        document.getElementById('tryNow'),
+        document.getElementById('getStarted')
+      ].filter(Boolean);
+      const closer = document.getElementById('closeLogin');
+
+      openers.forEach(el => el.addEventListener('click', () => {
+        overlay.classList.add('active');
+        document.getElementById('modalUsername').focus();
+      }));
+      closer.addEventListener('click', () => overlay.classList.remove('active'));
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.classList.remove('active');
+      });
+
+      // Modal login submission (reuses backend endpoints from login page)
+      document.getElementById('modalLoginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const username = document.getElementById('modalUsername').value;
+        const password = document.getElementById('modalPassword').value;
+        const messageDiv = document.getElementById('modalMessage');
+        const btn = document.getElementById('modalLoginBtn');
+        btn.disabled = true; btn.textContent = 'Signing in...';
+        messageDiv.textContent = '';
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          const requestData = JSON.stringify({ username, password });
+          let response = await fetch('/admin/user/login', { method: 'POST', headers, body: requestData });
+          let data = await response.json();
+          if (!response.ok && response.status === 401) {
+            response = await fetch('/admin/super-admin/login', { method: 'POST', headers, body: requestData });
+            data = await response.json();
+          }
+          if (response.ok) {
+            messageDiv.className = 'modal-message success';
+            messageDiv.textContent = `Welcome back, ${data.username}!`;
+            sessionStorage.setItem('user', JSON.stringify({
+              id: data.user_id,
+              username: data.username,
+              role: data.role,
+              organization_id: data.organization_id,
+              organization_name: data.organization_name,
+            }));
+            setTimeout(() => {
+              if (data.role === 'super-admin') {
+                window.location.href = '/super-admin';
+              } else {
+                window.location.href = '/dashboard';
+              }
+            }, 800);
+          } else {
+            let errorMessage = 'Login failed. Please check your credentials.';
+            if (data && data.detail) errorMessage = data.detail;
+            else if (data && data.message) errorMessage = data.message;
+            else if (typeof data === 'string') errorMessage = data;
+            else if (Array.isArray(data)) errorMessage = data.join(', ');
+            messageDiv.className = 'modal-message error';
+            messageDiv.textContent = errorMessage;
+          }
+        } catch (err) {
+          messageDiv.className = 'modal-message error';
+          messageDiv.textContent = 'An error occurred during login. Please try again.';
+        } finally {
+          btn.disabled = false; btn.textContent = 'Sign In';
+        }
+      });
+
+      // Auto-scroll features every 5 seconds, one card at a time
+      (function(){
+        const rail = document.getElementById('featuresRail');
+        if (!rail) return;
+        let index = 0;
+        const step = () => {
+          const cards = rail.querySelectorAll('.feature-card');
+          if (!cards.length) return;
+          index = (index + 1) % cards.length;
+          const card = cards[index];
+          rail.scrollTo({ left: card.offsetLeft - 16, behavior: 'smooth' });
+        };
+        setInterval(step, 2000);
+      })();
     </script>
   </body>
 </html>

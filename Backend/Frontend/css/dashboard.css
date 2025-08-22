@@ -276,6 +276,32 @@ body {
   color: #c9c4d6;
 }
 
+.chat-item {
+  position: relative;
+}
+
+.chat-item::after {
+  content: "Double-click to rename";
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+.chat-item:hover::after {
+  opacity: 1;
+}
+
 /* Right: chat panel */
 .chat-container {
   background: rgba(255,255,255,0.08);

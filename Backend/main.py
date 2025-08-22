@@ -237,6 +237,31 @@ def delete_chat(chat_id: str, db: Session = Depends(get_db)):
 
     return {"message": "Chat deleted successfully"}
 
+@app.put("/chats/{chat_id}/title")
+def update_chat_title(chat_id: str, payload: dict, db: Session = Depends(get_db)):
+    user_id = payload.get("user_id")
+    title = payload.get("title")
+    
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    
+    # Validate title length
+    if len(title) > 100:
+        raise HTTPException(status_code=400, detail="Title is too long. Maximum 100 characters allowed.")
+    
+    # Verify the chat belongs to the user
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found or access denied")
+    
+    # Update the title
+    chat.title = title
+    db.commit()
+    
+    return {"message": "Chat title updated successfully", "title": title}
+
 # ---------- RAG API with MEMORY ----------
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, db: Session = Depends(get_db)):

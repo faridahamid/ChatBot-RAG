@@ -825,8 +825,20 @@
         chats.forEach(chat => {
           const chatItem = document.createElement("div");
           chatItem.className = `chat-item ${chat.chat_id === currentChatId ? 'active' : ''}`;
-          chatItem.onclick = () => loadChat(chat.chat_id);
-          chatItem.ondblclick = () => enableRename(chat.chat_id, chat.title);
+          
+          let clickTimeout;
+          chatItem.onclick = () => {
+            clearTimeout(clickTimeout);
+            clickTimeout = setTimeout(() => {
+              loadChat(chat.chat_id);
+            }, 200);
+          };
+          
+          chatItem.ondblclick = (e) => {
+            e.preventDefault();
+            clearTimeout(clickTimeout);
+            enableRename(chat.chat_id, chat.title);
+          };
           
           const title = chat.title || "New Chat";
           const date = new Date(chat.created_at).toLocaleDateString();
@@ -937,18 +949,29 @@
       
       async function enableRename(chatId, currentTitle) {
         const newTitle = prompt("Rename chat:", currentTitle || "");
-        if (newTitle === null) return; 
+        if (newTitle === null) return; // User cancelled
+        
         const t = newTitle.trim();
-        if (!t) return;
+        if (!t) {
+          showMessage("Chat title cannot be empty.", "error");
+          return;
+        }
+        
+        if (t.length > 100) {
+          showMessage("Chat title is too long. Please use 100 characters or less.", "error");
+          return;
+        }
+        
         try {
           const res = await fetch(`/chats/${chatId}/title`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: user.id, title: t })
           });
+          
           if (res.ok) {
-            
-            loadChatHistory(false);
+            showMessage("Chat renamed successfully!", "success");
+            loadChatHistory();
           } else {
             const err = await res.json();
             showMessage(`Rename failed: ${err.detail || 'Unknown error'}`, 'error');

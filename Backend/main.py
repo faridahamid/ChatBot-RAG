@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -11,14 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import get_db, engine
 from models import Organization, User, DocumentChunk, Document, Chat, ChatMessage, SuperAdmin, Feedback
-from schemas import OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse, OrganizationResponse, UserResponse, FeedbackCreate, FeedbackResponse, FeedbackUpdate
+from schemas import (
+    OrgCreate, UserCreate, UploadResponse, AskRequest, AskResponse,
+    OrganizationResponse, UserResponse, FeedbackCreate, FeedbackResponse, FeedbackUpdate
+)
 from ingestion import process_document, process_document_from_bytes, embed_query
-from llm import get_gemini, make_prompt
+from llm import get_gemini, make_prompt, rewrite_query_with_history
 from admin_auth import router as admin_router
 
-
 from langdetect import detect
-
 
 from faster_whisper import WhisperModel
 import soundfile as sf
@@ -29,14 +30,14 @@ app = FastAPI(title="Multi-Org RAG Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[""], allow_credentials=True, allow_methods=[""], allow_headers=["*"],
+    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
 app.include_router(admin_router)
 
-
-WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small") 
-WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")      
+# ---------- STT (Whisper) ----------
+WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small")
+WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
 
 try:
     whisper_model = WhisperModel(WHISPER_MODEL_NAME, device=WHISPER_DEVICE, compute_type="int8")
@@ -44,7 +45,7 @@ try:
 except Exception as e:
     raise RuntimeError(f"Failed to load Whisper model: {e}")
 
-
+# ---------- FRONTEND ROUTES ----------
 @app.get("/", response_class=HTMLResponse)
 def welcome_page():
     try:
@@ -60,14 +61,6 @@ def login_page():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Login page not found</h1>", status_code=404)
-
-# @app.get("/admin-register", response_class=HTMLResponse)
-# def admin_register_page():
-#     try:
-#         with open("Frontend/pages/admin_register.html", "r", encoding="utf-8") as f:
-#             return HTMLResponse(content=f.read())
-#     except FileNotFoundError:
-#         return HTMLResponse(content="<h1>Admin registration page not found</h1>", status_code=404)
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page():
@@ -95,7 +88,6 @@ def admin_users_page():
 
 @app.get("/super-admin", response_class=HTMLResponse)
 def super_admin_page():
-    """Serve the super admin page"""
     try:
         with open("Frontend/pages/super_admin.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -104,7 +96,6 @@ def super_admin_page():
 
 @app.get("/admin-documents", response_class=HTMLResponse)
 def admin_documents_page():
-    """Serve the admin document management page"""
     try:
         with open("Frontend/pages/admin_documents.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -113,7 +104,6 @@ def admin_documents_page():
 
 @app.get("/admin-feedback", response_class=HTMLResponse)
 def admin_feedback_page():
-    """Serve the admin feedback management page"""
     try:
         with open("Frontend/pages/admin_feedback.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -122,14 +112,13 @@ def admin_feedback_page():
 
 @app.get("/change-password", response_class=HTMLResponse)
 def change_password_page():
-    """Serve the password change page"""
     try:
         with open("Frontend/pages/change_password.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Password change page not found</h1>", status_code=404)
 
-
+# ---------- STATIC ----------
 @app.get("/css/{filename}")
 def get_css(filename: str):
     try:
@@ -147,32 +136,28 @@ def get_js(filename: str):
 # ---------- STT API ----------
 @app.post("/stt")
 async def stt(file: UploadFile = File(...), translate: Optional[bool] = False):
-   
-    
     try:
         audio_bytes = await file.read()
 
-       
         data, sr = sf.read(io.BytesIO(audio_bytes), dtype="float32", always_2d=True)
 
-        # Convert to mono
+        # Mono
         if data.shape[1] > 1:
             data = np.mean(data, axis=1)
         else:
             data = data[:, 0]
 
-       
+        # 16k for Whisper
         if sr != 16000:
             from math import gcd
             g = gcd(16000, sr)
             up, down = 16000 // g, sr // g
             data = resample_poly(data, up, down)
 
-       
         task = "translate" if translate else "transcribe"
         segments, info = whisper_model.transcribe(
             data,
-            language=None,  
+            language=None,
             task=task,
             vad_filter=True,
             beam_size=5
@@ -181,13 +166,13 @@ async def stt(file: UploadFile = File(...), translate: Optional[bool] = False):
 
         return JSONResponse({
             "text": text_out,
-            "lang": info.language,                             
+            "lang": info.language,
             "lang_prob": float(info.language_probability or 0)
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"STT error: {e}")
 
-# ---------- CHAT MANAGEMENT API ----------
+# ---------- CHAT MANAGEMENT ----------
 @app.post("/chats", response_model=dict)
 def create_chat(payload: dict, db: Session = Depends(get_db)):
     user_id = payload.get("user_id")
@@ -252,7 +237,7 @@ def delete_chat(chat_id: str, db: Session = Depends(get_db)):
 
     return {"message": "Chat deleted successfully"}
 
-# ---------- RAG API ----------
+# ---------- RAG API with MEMORY ----------
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, db: Session = Depends(get_db)):
     # Validate user and org membership
@@ -265,17 +250,49 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     if role not in ("user", "admin"):
         return AskResponse(answer="Your role is not permitted to use the chat.")
 
-    
+    # Choose the chat (reuse latest if none provided)
+    if payload.chat_id:
+        chat = db.query(Chat).filter(Chat.id == payload.chat_id, Chat.user_id == payload.user_id).first()
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+    else:
+        chat = (
+            db.query(Chat)
+            .filter(Chat.user_id == payload.user_id)
+            .order_by(Chat.created_at.desc())
+            .first()
+        )
+        if not chat:
+            chat = Chat(user_id=payload.user_id, title=payload.question[:80])
+            db.add(chat)
+            db.flush()
+
+    # Language detect
     try:
         qlang = detect(payload.question)
     except Exception:
         qlang = "en"
+    lang_label = "Arabic" if qlang == "ar" else "English"
 
-    
-    qvec = embed_query(payload.question)
+    # --------- Recent chat history (last 8 messages) ---------
+    history_rows = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.chat_id == chat.id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(8)
+        .all()
+    )
+    history: List[Tuple[str, str]] = [(m.role, m.content) for m in reversed(history_rows)]
+
+    # --------- Rewrite to standalone query for retrieval ---------
+    # Provide short recent history + current question to the rewriter
+    history_for_rewrite = history[-7:]
+    standalone_query = rewrite_query_with_history(payload.question, history_for_rewrite + [("user", payload.question)])
+
+    # --------- Embed (standalone) & retrieve ---------
+    qvec = embed_query(standalone_query)
     qvec_np = np.array(qvec, dtype=np.float32)
 
-   
     top_k = int(os.getenv("RAG_TOP_K", "40"))
     sql = text(
         f"""
@@ -299,14 +316,14 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     snippets: List[str] = [r.content for r in rows]
     scores = [row2score(r) for r in rows]
 
-    
+    # Fallback: translate to English and retry once if weak/empty
     refusal_threshold = float(os.getenv("RAG_REFUSAL_THRESHOLD", "0.40"))
     need_fallback = (not rows) or (scores and scores[0] < refusal_threshold)
     if need_fallback:
         try:
             model = get_gemini()
             t = model.generate_content(
-                f"Translate to English (keep common technical terms as-is):\n\n{payload.question}"
+                f"Translate to English (keep common technical terms as-is):\n\n{standalone_query}"
             )
             q_en = (getattr(t, "text", "") or "").strip()
             if q_en:
@@ -319,19 +336,30 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    
     if not rows:
         msg = (
             "لا أملك معلومات حول هذا الموضوع في قاعدة معرفة هذه المؤسسة."
             if qlang == "ar"
             else "I don't have information about that in this organization's knowledge base."
         )
+        # persist the attempt
+        try:
+            db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
+            db.add(ChatMessage(chat_id=chat.id, role="assistant", content=msg, citations=[]))
+            db.commit()
+        except Exception:
+            db.rollback()
         return AskResponse(answer=msg)
 
-    
+    # --------- Build prompt with memory (short history) ---------
     keep = int(os.getenv("RAG_LLM_SNIPPETS", "8"))
-    lang_label = "Arabic" if qlang == "ar" else "English"
-    prompt = make_prompt(payload.question, snippets[:keep], lang_hint=lang_label)
+    history_for_answer = history[-6:]  # keep it compact
+    prompt = make_prompt(
+        question=payload.question,              # show the original wording
+        context_snippets=snippets[:keep],
+        lang_hint=lang_label,
+        chat_history=history_for_answer
+    )
 
     model = get_gemini()
     try:
@@ -340,33 +368,8 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {e}")
 
-   
+    # --------- Persist exchange ---------
     try:
-        if payload.chat_id:
-            chat = db.query(Chat).filter(Chat.id == payload.chat_id, Chat.user_id == payload.user_id).first()
-            if not chat:
-                raise HTTPException(status_code=404, detail="Chat not found or access denied")
-        else:
-           
-            chat = (
-                db.query(Chat)
-                .filter(Chat.user_id == payload.user_id)
-                .order_by(Chat.created_at.desc())
-                .first()
-            )
-            if not chat:
-                chat = Chat(user_id=payload.user_id, title=payload.question[:80])
-                db.add(chat)
-                db.flush()
-
-       
-        try:
-            msg_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
-            if (msg_count == 0) or (not chat.title) or (chat.title.strip().lower() == "new chat"):
-                chat.title = payload.question[:80]
-        except Exception:
-            pass
-
         db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
 
         citations = [
@@ -374,31 +377,21 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
             for r in rows[:keep]
         ]
         db.add(ChatMessage(chat_id=chat.id, role="assistant", content=answer_text, citations=citations))
+
+        # Title on first turn or placeholder
+        try:
+            msg_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
+            if (msg_count == 0) or (not chat.title) or (chat.title.strip().lower() == "new chat"):
+                chat.title = payload.question[:80]
+        except Exception:
+            pass
+
         db.commit()
     except Exception as e:
         db.rollback()
         print(f"Error persisting chat: {e}")
 
     return AskResponse(answer=answer_text.strip())
-
-@app.put("/chats/{chat_id}/title", response_class=JSONResponse)
-def rename_chat(chat_id: str, payload: dict, db: Session = Depends(get_db)):
-   
-    user_id = payload.get("user_id")
-    new_title = (payload.get("title") or "").strip()
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
-    if not new_title:
-        raise HTTPException(status_code=400, detail="title is required")
-
-    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user_id).first()
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found or access denied")
-
-    chat.title = new_title[:120]
-    db.commit()
-    db.refresh(chat)
-    return JSONResponse({"chat_id": str(chat.id), "title": chat.title})
 
 # ---------- Upload ----------
 @app.post("/upload", response_model=UploadResponse)
@@ -450,7 +443,6 @@ def list_documents(
     user_id: uuid.UUID = Query(...),
     db: Session = Depends(get_db)
 ):
-    """List all documents for an organization (admin only)"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -484,7 +476,6 @@ def delete_document(
     user_id: uuid.UUID = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Delete a document (admin only)"""
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -493,7 +484,7 @@ def delete_document(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if str(user.organization_id) != str(document.organization_id):
-        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+        raise HTTPException(statuscode=403, detail="User does not belong to this organization")
     if (user.role or "").lower() != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete documents")
     org = db.query(Organization).filter(Organization.id == user.organization_id, Organization.is_active == True).first()
@@ -508,12 +499,10 @@ def delete_document(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
-
-
+# ---------- DB setup ----------
 @app.on_event("startup")
 def _ensure_indexes():
     with engine.begin() as conn:
-        # Add content_hash if missing
         conn.execute(text(
             """
             DO $$
@@ -534,7 +523,6 @@ def _ensure_indexes():
             ON documents (organization_id, content_hash);
             """
         ))
-        # Ensure is_active columns exist and default to true
         conn.execute(text(
             """
             DO $$
@@ -551,13 +539,13 @@ def _ensure_indexes():
                 ) THEN
                     ALTER TABLE organizations ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
                 END IF;
-                -- Backfill NULLs to TRUE just in case
                 UPDATE users SET is_active = TRUE WHERE is_active IS NULL;
                 UPDATE organizations SET is_active = TRUE WHERE is_active IS NULL;
             END $$;
             """
         ))
 
+# ---------- Orgs/Users/Feedback ----------
 @app.post("/orgs", response_class=JSONResponse)
 def create_org(payload: OrgCreate, db: Session = Depends(get_db)):
     org = Organization(name=payload.name, description=payload.description)
@@ -589,7 +577,6 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/feedbacks", response_model=FeedbackResponse)
 def create_feedback(payload: FeedbackCreate, db: Session = Depends(get_db)):
-    # Validate user and message
     user = db.query(User).filter(User.id == payload.user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -598,11 +585,9 @@ def create_feedback(payload: FeedbackCreate, db: Session = Depends(get_db)):
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
 
-    # Ensure the message belongs to the provided chat
     if str(message.chat_id) != str(payload.chat_id):
         raise HTTPException(status_code=400, detail="Message does not belong to provided chat")
 
-    # Check if user already gave feedback for this message
     existing_feedback = (
         db.query(Feedback)
         .filter(Feedback.message_id == payload.message_id, Feedback.user_id == payload.user_id)
@@ -611,7 +596,6 @@ def create_feedback(payload: FeedbackCreate, db: Session = Depends(get_db)):
     if existing_feedback:
         raise HTTPException(status_code=409, detail="User already gave feedback for this message")
 
-    # Create feedback (rating optional, comment optional)
     feedback = Feedback(
         chat_id=payload.chat_id,
         message_id=payload.message_id,
@@ -637,7 +621,6 @@ def create_feedback(payload: FeedbackCreate, db: Session = Depends(get_db)):
 
 @app.get("/feedbacks/{org_id}", response_model=List[FeedbackResponse])
 def get_feedbacks(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: Session = Depends(get_db)):
-    """Get all feedbacks for an organization (admin only)"""
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -650,7 +633,6 @@ def get_feedbacks(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: Sessio
     if not org:
         raise HTTPException(status_code=403, detail="Organization is inactive")
 
-    # Get feedbacks with user information
     feedbacks = db.query(Feedback, User.username).join(User, Feedback.user_id == User.id).filter(
         User.organization_id == org_id
     ).order_by(Feedback.created_at.desc()).all()
@@ -673,7 +655,6 @@ def get_feedbacks(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: Sessio
 
 @app.put("/feedbacks/{feedback_id}/seen", response_class=JSONResponse)
 def update_feedback_seen(feedback_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: Session = Depends(get_db)):
-    """Mark feedback as seen by admin"""
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -684,7 +665,6 @@ def update_feedback_seen(feedback_id: uuid.UUID, user_id: uuid.UUID = Query(...)
     if not feedback:
         raise HTTPException(status_code=404, detail="Feedback not found")
     
-    # Check if admin belongs to the same organization as the feedback user
     feedback_user = db.query(User).filter(User.id == feedback.user_id).first()
     if not feedback_user or str(feedback_user.organization_id) != str(user.organization_id):
         raise HTTPException(status_code=403, detail="Access denied")
@@ -696,7 +676,6 @@ def update_feedback_seen(feedback_id: uuid.UUID, user_id: uuid.UUID = Query(...)
 
 @app.get("/feedbacks/{org_id}/stats", response_class=JSONResponse)
 def get_feedback_stats(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: Session = Depends(get_db)):
-    """Get feedback statistics for an organization (admin only)"""
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -709,7 +688,6 @@ def get_feedback_stats(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: S
     if not org:
         raise HTTPException(status_code=403, detail="Organization is inactive")
 
-    # Get feedback statistics
     total_feedbacks = db.query(Feedback).join(User, Feedback.user_id == User.id).filter(
         User.organization_id == org_id
     ).count()
@@ -723,7 +701,6 @@ def get_feedback_stats(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: S
         Feedback.seen_by_admin == False
     ).count()
     
-    # Rating distribution
     rating_distribution = db.query(
         Feedback.rating,
         db.func.count(Feedback.id)

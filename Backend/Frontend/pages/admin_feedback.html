@@ -1,424 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Feedback - RAG ChatBot</title>
-    <link rel="stylesheet" href="/css/dashboard.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .feedback-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .stats-section {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 2em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-        
-        .chart-container {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .feedback-list {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .feedback-item {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            background: #fafafa;
-        }
-        
-        .feedback-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .feedback-user {
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .feedback-date {
-            color: #666;
-            font-size: 0.9em;
-        }
-        
-        .feedback-rating {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .stars {
-            color: #ffd700;
-            font-size: 1.2em;
-            margin-right: 10px;
-        }
-        
-        .rating-number {
-            background: #007bff;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-        }
-        
-        .feedback-comment {
-            background: white;
-            color: #333;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 3px solid #007bff;
-            margin-bottom: 10px;
-        }
-        
-        .feedback-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .btn-seen {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        
-        .btn-seen:hover {
-            background: #218838;
-        }
-        
-        .btn-seen:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-        
-        .unread-badge {
-            background: #dc3545;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
-        
-        .no-feedback {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-style: italic;
-        }
-        
-        .back-btn {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-        
-        .back-btn:hover {
-            background: #5a6268;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Feedback - RAG ChatBot</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#E9E7F1;
+      background:radial-gradient(1200px 600px at 20% -10%,rgba(151,71,255,.35),transparent 60%),
+                 radial-gradient(1200px 800px at 110% 10%,rgba(82,0,204,.35),transparent 60%),
+                 linear-gradient(145deg,#0f0b17 0%,#1a1226 40%,#241437 100%);
+      min-height:100vh;
+      padding-top:72px; /* space for navbar */
+    }
+
+    /* Navbar */
+    .navbar{
+      background:rgba(24,16,37,.7);
+      backdrop-filter:blur(12px);
+      padding:1rem 2rem;
+      position:fixed;top:0;left:0;right:0;z-index:1000;
+      box-shadow:0 2px 14px rgba(0,0,0,.35);
+    }
+    .nav-container{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+    .logo-wrapper{display:flex;align-items:center;gap:10px}
+    .logo-image{height:40px;width:40px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+    .logo-text{font-size:1.4rem;font-weight:700;color:#B18CFF}
+    .nav-links{display:flex;list-style:none;gap:2rem}
+    .nav-links a{
+      text-decoration:none;color:#E9E7F1;font-weight:600;
+      transition:color .25s ease,opacity .25s ease;
+    }
+    .nav-links a:hover{color:#B18CFF}
+
+    .container{max-width:1200px;margin:0 auto;padding:100px 2rem 2rem}
+    .header{text-align:center;margin-bottom:2rem;padding:2rem;background:rgba(255,255,255,.05);border-radius:15px;border:1px solid rgba(255,255,255,.1)}
+    .welcome-message{font-size:2.5rem;margin-bottom:1.5rem;background:linear-gradient(135deg,#B18CFF,#8a2be2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1.5rem}
+    .info-item{background:rgba(255,255,255,.08);padding:1rem;border-radius:10px;border:1px solid rgba(255,255,255,.1)}
+    .info-label{color:#B18CFF;font-weight:600;margin-bottom:.5rem}
+    .info-value{color:#fff;font-size:1.1rem}
+
+    .feedback-container{max-width:1200px;margin:0 auto}
+    .stats-section{background:rgba(255,255,255,.05);border-radius:15px;padding:2rem;margin-bottom:2rem;border:1px solid rgba(255,255,255,.1)}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1rem}
+    .stat-card{background:linear-gradient(135deg,#8a2be2,#5b19a6);color:#fff;padding:1.5rem;border-radius:15px;text-align:center;border:1px solid rgba(255,255,255,.1)}
+    .stat-number{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+    .stat-label{font-size:.9rem;opacity:.9}
+    .stats-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem}
+    .btn{
+      background:rgba(177,140,255,.1);color:#B18CFF;border:1px solid rgba(177,140,255,.3);
+      padding:.6rem 1rem;border-radius:10px;cursor:pointer;font-weight:600
+    }
+    .btn:hover{background:rgba(177,140,255,.2);transform:translateY(-1px)}
+
+    .chart-container{background:rgba(255,255,255,.05);border-radius:15px;padding:2rem;margin-bottom:2rem;border:1px solid rgba(255,255,255,.1)}
+
+    .feedback-list{background:rgba(255,255,255,.05);border-radius:15px;padding:2rem;border:1px solid rgba(255,255,255,.1)}
+    .feedback-item{
+      border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:1.25rem;margin-bottom:1rem;background:rgba(255,255,255,.08);
+      display:flex;gap:1rem;align-items:flex-start;justify-content:space-between
+    }
+    .feedback-main{flex:1}
+    .badge{display:inline-block;padding:.25rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;border:1px solid rgba(255,255,255,.25)}
+    .badge.unread{background:rgba(255,193,7,.15);color:#ffc107}
+    .badge.read{background:rgba(40,167,69,.15);color:#28a745}
+    .feedback-header{display:flex;gap:.75rem;align-items:center;margin-bottom:.5rem}
+    .feedback-user{font-weight:700;color:#E9E7F1}
+    .feedback-date{color:#c9c4d6;font-size:.9rem;margin-left:auto}
+    .feedback-rating{display:flex;align-items:center;margin-bottom:.5rem}
+    .stars{color:#ffd700;font-size:1.1rem;margin-right:.5rem}
+    .feedback-comment{color:#c9c4d6;font-style:italic;line-height:1.6}
+    .feedback-actions{display:flex;gap:.5rem}
+
+    .message{padding:1rem;border-radius:8px;margin-bottom:1rem;text-align:center;font-weight:500;display:none}
+    .message.success{background:rgba(40,167,69,.2);color:#28a745;border:1px solid rgba(40,167,69,.3);display:block}
+    .message.error{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.3);display:block}
+    .loading{color:#c9c4d6;padding:2rem;text-align:center}
+    .no-feedback{color:#c9c4d6;padding:2.5rem;text-align:center}
+  </style>
 </head>
 <body>
-    <div class="feedback-container">
-        <button class="back-btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
-        
-        <h1>Feedback Management</h1>
-        
-        <!-- Statistics Section -->
-        <!-- <div class="stats-section">
-            <h2>Feedback Statistics</h2>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number" id="totalFeedbacks">-</div>
-                    <div class="stat-label">Total Feedbacks</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="averageRating">-</div>
-                    <div class="stat-label">Average Rating</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="unreadFeedbacks">-</div>
-                    <div class="stat-label">Unread Feedbacks</div>
-                </div>
-            </div>
-        </div> -->
-        
-        <!-- Chart Section -->
-        <!-- <div class="chart-container">
-            <h2>Rating Distribution</h2>
-            <canvas id="ratingChart" width="400" height="200"></canvas>
-        </div> -->
-        
-        <!-- Feedback List Section -->
-        <div class="feedback-list">
-            <h2>All Feedbacks</h2>
-            <div id="feedbackList">
-                <div class="no-feedback">Loading feedbacks...</div>
-            </div>
-        </div>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo-wrapper">
+        <img src="https://i.pinimg.com/1200x/c4/dd/47/c4dd475a926160c734876937ce9aafe4.jpg" alt="RAG ChatBot" class="logo-image">
+        <div class="logo-text">RAG ChatBot</div>
+      </div>
+      <ul class="nav-links">
+        <li><a href="/admin-dashboard">Dashboard</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="header">
+      <h1 class="welcome-message">Feedback Management</h1>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-label">Username:</div><div class="info-value" id="adminUsername">Loading...</div></div>
+        <div class="info-item"><div class="info-label">Role:</div><div class="info-value" id="adminRole">Admin</div></div>
+        <div class="info-item"><div class="info-label">Organization:</div><div class="info-value" id="adminOrganization">Loading...</div></div>
+      </div>
     </div>
 
-    <script>
-        let user = null;
-        let ratingChart = null;
+    <div id="message" class="message"></div>
 
-        // Load user info and initialize page
-        function initializePage() {
-            const userStr = sessionStorage.getItem("user");
-            if (userStr) {
-                try {
-                    user = JSON.parse(userStr);
-                    if (user.role !== "admin") {
-                        window.location.href = "/dashboard";
-                        return;
-                    }
-                    loadFeedbackStats();
-                    loadFeedbacks();
-                } catch (error) {
-                    console.error("Error parsing user data:", error);
-                    showMessage("Error loading user information.", "error");
-                }
-            } else {
-                window.location.href = "/login";
-            }
+    <div class="feedback-container">
+      <div class="stats-section">
+        <h2 style="color:#B18CFF;margin-bottom:1rem;text-align:center"> Feedback Statistics</h2>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-number" id="totalFeedbacks">0</div><div class="stat-label">Total Feedbacks</div></div>
+          <div class="stat-card"><div class="stat-number" id="avgRating">0.0</div><div class="stat-label">Average Rating</div></div>
+          <div class="stat-card"><div class="stat-number" id="unreadFeedbacks">0</div><div class="stat-label">Unread Feedbacks</div></div>
+        </div>
+        <div class="stats-actions">
+          <button class="btn" onclick="markAllAsRead()">Mark all as read</button>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <h3 style="color:#E9E7F1;margin-bottom:1rem;text-align:center">Average Rating Per User</h3>
+        <canvas id="avgLineChart" height="260"></canvas>
+      </div>
+
+      <div class="feedback-list">
+        <h2 style="color:#B18CFF;margin-bottom:1rem;text-align:center"> User Feedback</h2>
+        <div id="feedbackList"><div class="loading">Loading feedback...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let feedbacksCache = [];
+    let lineChart = null;
+
+    document.addEventListener('DOMContentLoaded', () => loadUserInfo());
+
+    function loadUserInfo() {
+      const userStr = sessionStorage.getItem("user");
+      if (!userStr) return location.href="/login";
+      currentUser = JSON.parse(userStr);
+      if ((currentUser.role||"").toLowerCase() !== "admin") return location.replace("/dashboard");
+      document.getElementById("adminUsername").textContent = currentUser.username;
+      document.getElementById("adminRole").textContent = currentUser.role;
+      document.getElementById("adminOrganization").textContent = currentUser.organization_name;
+      loadFeedback();
+    }
+
+    async function loadFeedback() {
+      const orgId = currentUser.organization_id;
+      const uid = currentUser.id;
+      try {
+        const statsRes = await fetch(`/feedbacks/${orgId}/stats?user_id=${uid}`);
+        const stats = statsRes.ok ? await statsRes.json() : null;
+
+        const listRes = await fetch(`/feedbacks/${orgId}?user_id=${uid}`);
+        feedbacksCache = listRes.ok ? await listRes.json() : [];
+        renderStats(stats || computeStatsLocally(feedbacksCache));
+        renderList(feedbacksCache);
+        renderBarChart(feedbacksCache);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function computeStatsLocally(items){
+      const total = items.length;
+      const avg = total ? items.reduce((s,f)=>s+(+f.rating||0),0)/total : 0;
+      const unread = items.filter(f=>!f.seen_by_admin).length;
+      return {total_feedbacks:total,average_rating:avg,unread_feedbacks:unread};
+    }
+
+    function renderStats(stats){
+      document.getElementById("totalFeedbacks").textContent = stats.total_feedbacks;
+      document.getElementById("avgRating").textContent = stats.average_rating.toFixed(1);
+      document.getElementById("unreadFeedbacks").textContent = stats.unread_feedbacks;
+    }
+
+    function renderList(items){
+      const wrap=document.getElementById("feedbackList");
+      if(!items.length) return wrap.innerHTML='<div class="no-feedback">No feedback received</div>';
+      wrap.innerHTML=items.map(f=>{
+        const rating = Math.max(0, Math.min(5, Number(f.rating)||0));
+        const stars="★".repeat(rating)+"☆".repeat(5-rating);
+        const date=new Date(f.created_at).toLocaleDateString();
+        const badge=f.seen_by_admin?'<span class="badge read">Read</span>':'<span class="badge unread">Unread</span>';
+        const readBtn = f.seen_by_admin ? '' : `<div class="feedback-actions"><button class="btn" onclick="markAsRead('${f.id}')">Mark as read</button></div>`;
+        return `<div class="feedback-item">
+          <div class="feedback-main">
+            <div class="feedback-header">
+              <div class="feedback-user">${f.username||"User"}</div>${badge}
+              <div class="feedback-date">${date}</div>
+            </div>
+            <div class="feedback-rating"><div class="stars">${stars}</div><span>${rating}/5</span></div>
+            ${f.comment?`<div class="feedback-comment">"${f.comment}"</div>`:""}
+          </div>
+          ${readBtn}
+        </div>`;
+      }).join("");
+    }
+
+    // === BAR CHART ===
+    function renderBarChart(items){
+      const ctx=document.getElementById("avgLineChart").getContext("2d");
+      if(lineChart) lineChart.destroy();
+
+      const userGroups={};
+      items.forEach(f=>{
+        const u=(f.username || "User").trim() || "User";
+        if(!userGroups[u]) userGroups[u]=[];
+        const r = Number(f.rating) || 0;
+        if (!Number.isNaN(r)) userGroups[u].push(Math.max(0, Math.min(5, r)));
+      });
+
+      const entries = Object.entries(userGroups).map(([u, arr])=>{
+        const avg = arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+        return { user: u, avg: +avg.toFixed(2) };
+      }).sort((a,b)=>b.avg - a.avg);
+
+      const labels = entries.map(e=>e.user);
+      const data = entries.map(e=>e.avg);
+
+      if (labels.length === 0) { labels.push("No Data"); data.push(0); }
+
+      lineChart=new Chart(ctx,{
+        type:"bar",
+        data:{
+          labels,
+          datasets:[{
+            label:"Average Rating",
+            data,
+            backgroundColor:"rgba(177,140,255,0.35)",
+            borderColor:"#B18CFF",
+            borderWidth:1.5,
+            hoverBackgroundColor:"rgba(177,140,255,0.55)"
+          }]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          scales:{
+            y:{min:0,max:5,ticks:{stepSize:1,color:"#E9E7F1"},grid:{color:"rgba(255,255,255,0.08)"}},
+            x:{ticks:{color:"#E9E7F1"},grid:{display:false}}
+          },
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>` ${ctx.parsed.y.toFixed(2)} / 5`}}}
         }
+      });
 
-        // Load feedback statistics
-        async function loadFeedbackStats() {
-            try {
-                const response = await fetch(`/feedbacks/${user.organization_id}/stats?user_id=${user.id}`);
-                if (response.ok) {
-                    const stats = await response.json();
-                    displayStats(stats);
-                    createRatingChart(stats.rating_distribution);
-                } else {
-                    console.error("Failed to load feedback stats");
-                }
-            } catch (error) {
-                console.error("Error loading feedback stats:", error);
-            }
+      const canvasEl = document.getElementById("avgLineChart");
+      canvasEl.style.maxHeight = "420px";
+      canvasEl.parentElement.style.minHeight = "320px";
+    }
+
+    // ====== READ / MARK-ALL ======
+
+    // PUT /feedbacks/{feedback_id}/seen?user_id=ADMIN_ID
+    async function markAsRead(feedbackId){
+      if(!currentUser || !feedbackId) return;
+      try{
+        const res = await fetch(`/feedbacks/${feedbackId}/seen?user_id=${currentUser.id}`, { method:'PUT' });
+        if(res.ok){
+          feedbacksCache = feedbacksCache.map(f => f.id === feedbackId ? { ...f, seen_by_admin: true } : f);
+          renderStats(computeStatsLocally(feedbacksCache));
+          renderList(feedbacksCache);
+          setMessage('Feedback marked as read.','success');
+        }else{
+          const err = await res.json().catch(()=>({}));
+          setMessage(err.detail || 'Failed to mark as read.','error');
         }
+      }catch(e){
+        setMessage('Error marking as read.','error');
+      }
+    }
 
-        // Display statistics
-        function displayStats(stats) {
-            document.getElementById("totalFeedbacks").textContent = stats.total_feedbacks;
-            document.getElementById("averageRating").textContent = stats.average_rating.toFixed(1);
-            document.getElementById("unreadFeedbacks").textContent = stats.unread_feedbacks;
-        }
+    // Loop single-item endpoint for all unread
+    async function markAllAsRead(){
+      if(!currentUser) return;
+      const unread = feedbacksCache.filter(f => !f.seen_by_admin).map(f => f.id);
+      if(unread.length === 0){ setMessage('Nothing to mark — all read already.','success'); return; }
+      try{
+        const results = await Promise.allSettled(
+          unread.map(id => fetch(`/feedbacks/${id}/seen?user_id=${currentUser.id}`, { method:'PUT' }))
+        );
+        const anyFailed = results.some(r => r.status === 'rejected' || (r.value && !r.value.ok));
+        // Update cache optimistically for successes
+        feedbacksCache = feedbacksCache.map(f => unread.includes(f.id) ? { ...f, seen_by_admin: true } : f);
+        renderStats(computeStatsLocally(feedbacksCache));
+        renderList(feedbacksCache);
+        setMessage(anyFailed ? 'Some items failed to mark as read.' : 'All feedback marked as read.',
+                   anyFailed ? 'error' : 'success');
+      }catch(e){
+        setMessage('Error marking all as read.','error');
+      }
+    }
 
-        // Create rating distribution chart
-        function createRatingChart(ratingDistribution) {
-            const ctx = document.getElementById("ratingChart").getContext("2d");
-            
-            if (ratingChart) {
-                ratingChart.destroy();
-            }
+    function setMessage(text,type){
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className = `message ${type}`;
+      el.style.display = 'block';
+      if(type==='success'){
+        setTimeout(()=>{ el.style.display='none'; }, 3000);
+      }
+    }
 
-            const labels = Object.keys(ratingDistribution).map(rating => `${rating} Stars`);
-            const data = Object.values(ratingDistribution);
-
-            ratingChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Number of Feedbacks',
-                        data: data,
-                        backgroundColor: [
-                            '#ff6b6b',
-                            '#ffa726',
-                            '#ffd54f',
-                            '#81c784',
-                            '#4fc3f7'
-                        ],
-                        borderColor: [
-                            '#d32f2f',
-                            '#f57c00',
-                            '#fbc02d',
-                            '#388e3c',
-                            '#1976d2'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        }
-
-        // Load all feedbacks
-        async function loadFeedbacks() {
-            try {
-                const response = await fetch(`/feedbacks/${user.organization_id}?user_id=${user.id}`);
-                if (response.ok) {
-                    const feedbacks = await response.json();
-                    displayFeedbacks(feedbacks);
-                } else {
-                    console.error("Failed to load feedbacks");
-                }
-            } catch (error) {
-                console.error("Error loading feedbacks:", error);
-            }
-        }
-
-        // Display feedbacks in the list
-        function displayFeedbacks(feedbacks) {
-            const feedbackList = document.getElementById("feedbackList");
-            
-            if (feedbacks.length === 0) {
-                feedbackList.innerHTML = '<div class="no-feedback">No feedbacks found.</div>';
-                return;
-            }
-
-            feedbackList.innerHTML = feedbacks.map(feedback => `
-                <div class="feedback-item ${feedback.seen_by_admin ? '' : 'unread'}">
-                    <div class="feedback-header">
-                        <div>
-                            <span class="feedback-user">${feedback.username}</span>
-                            <span class="feedback-date">${new Date(feedback.created_at).toLocaleString()}</span>
-                            ${!feedback.seen_by_admin ? '<span class="unread-badge">NEW</span>' : ''}
-                        </div>
-                    </div>
-                    
-                    <div class="feedback-rating">
-                        <div class="stars">${'★'.repeat(feedback.rating)}${'☆'.repeat(5-feedback.rating)}</div>
-                        <span class="rating-number">${feedback.rating}/5</span>
-                    </div>
-                    
-                    ${feedback.comment ? `
-                        <div class="feedback-comment">
-                            <strong>Comment:</strong> ${feedback.comment}
-                        </div>
-                    ` : ''}
-                    
-                    <div class="feedback-actions">
-                        <button 
-                            class="btn-seen" 
-                            onclick="markAsSeen('${feedback.id}')"
-                            ${feedback.seen_by_admin ? 'disabled' : ''}
-                        >
-                            ${feedback.seen_by_admin ? 'Already Seen' : 'Mark as Seen'}
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Mark feedback as seen
-        async function markAsSeen(feedbackId) {
-            try {
-                const response = await fetch(`/feedbacks/${feedbackId}/seen?user_id=${user.id}`, {
-                    method: 'PUT'
-                });
-                
-                if (response.ok) {
-                    // Reload feedbacks and stats
-                    loadFeedbackStats();
-                    loadFeedbacks();
-                    showMessage("Feedback marked as seen!", "success");
-                } else {
-                    const error = await response.json();
-                    showMessage(`Error: ${error.detail}`, "error");
-                }
-            } catch (error) {
-                console.error("Error marking feedback as seen:", error);
-                showMessage("Error updating feedback status.", "error");
-            }
-        }
-
-        // Show message
-        function showMessage(message, type) {
-            // Create a temporary message element
-            const messageDiv = document.createElement("div");
-            messageDiv.className = `message ${type}`;
-            messageDiv.textContent = message;
-            messageDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 20px;
-                border-radius: 5px;
-                color: white;
-                z-index: 1000;
-                ${type === 'success' ? 'background: #28a745;' : 'background: #dc3545;'}
-            `;
-            
-            document.body.appendChild(messageDiv);
-            
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 3000);
-        }
-
-        // Initialize page when DOM is loaded
-        document.addEventListener("DOMContentLoaded", initializePage);
-    </script>
+    function logout(){sessionStorage.removeItem("user");location.href="/";}
+  </script>
 </body>
 </html>

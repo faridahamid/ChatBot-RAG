@@ -4,591 +4,315 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document Management - RAG ChatBot</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{
+        font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#E9E7F1;
+        background:radial-gradient(1200px 600px at 20% -10%,rgba(151,71,255,.35),transparent 60%),
+                   radial-gradient(1200px 800px at 110% 10%,rgba(82,0,204,.35),transparent 60%),
+                   linear-gradient(145deg,#0f0b17 0%,#1a1226 40%,#241437 100%);
+        min-height:100vh;padding-top:72px;
       }
 
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 20px;
-      }
+      /* Navbar */
+      .navbar{background:rgba(24,16,37,.7);backdrop-filter:blur(12px);padding:1rem 2rem;position:fixed;top:0;left:0;right:0;z-index:1000;box-shadow:0 2px 14px rgba(0,0,0,.35)}
+      .nav-container{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+      .logo-wrapper{display:flex;align-items:center;gap:10px}
+      .logo-image{height:40px;width:40px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+      .logo-text{font-size:1.4rem;font-weight:700;color:#B18CFF}
+      .nav-links{display:flex;list-style:none;gap:2rem}
+      .nav-links a{text-decoration:none;color:#E9E7F1;font-weight:600;transition:color .25s ease}
+      .nav-links a:hover{color:#B18CFF}
 
-      .header {
-        background: white;
-        padding: 1.5rem 2rem;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
+      /* Main Container */
+      .container{max-width:1200px;margin:0 auto;padding:100px 2rem 2rem}
 
-      .header h1 {
-        color: #667eea;
-        font-size: 1.8rem;
-        font-weight: 700;
-      }
+      /* Header */
+      .header{text-align:center;margin-bottom:2rem;padding:2rem;background:rgba(255,255,255,.05);border-radius:15px;border:1px solid rgba(255,255,255,.1)}
+      .welcome-message{font-size:2.5rem;margin-bottom:1.5rem;background:linear-gradient(135deg,#B18CFF,#8a2be2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+      .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1.5rem}
+      .info-item{background:rgba(255,255,255,.08);padding:1rem;border-radius:10px;border:1px solid rgba(255,255,255,.1)}
+      .info-label{color:#B18CFF;font-weight:600;margin-bottom:.5rem}
+      .info-value{color:#fff;font-size:1.1rem}
 
-      .user-info {
-        text-align: right;
-        color: #666;
-      }
+      .documents-container{background:rgba(255,255,255,.05);padding:3rem;border-radius:20px;border:1px solid rgba(255,255,255,.1);position:relative;overflow:hidden}
+      .documents-container::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(45deg,#B18CFF,#8a2be2)}
+      .documents-header{text-align:center;margin-bottom:2rem}
+      .documents-header h2{color:#B18CFF;font-size:2rem;margin-bottom:.5rem}
+      .documents-header p{color:#c9c4d6;font-size:1.1rem}
 
-      .user-info .username {
-        font-weight: 600;
-        color: #667eea;
-      }
+      /* Upload Section */
+      .upload-section{background:rgba(255,255,255,.08);padding:2rem;border-radius:15px;margin-bottom:2rem;border:2px dashed #B18CFF;text-align:center}
+      .upload-header{margin-bottom:1.5rem}
+      .upload-header h3{color:#B18CFF;margin-bottom:.5rem}
+      .upload-header p{color:#c9c4d6}
+      .upload-area{border:2px dashed rgba(177,140,255,.5);border-radius:15px;padding:2rem;margin-bottom:1rem;cursor:pointer;transition:all .3s ease;position:relative}
+      .upload-area:hover{border-color:#B18CFF;background:rgba(177,140,255,.05)}
+      .upload-area.dragover{border-color:#B18CFF;background:rgba(177,140,255,.1)}
+      .upload-icon{font-size:3rem;margin-bottom:1rem;color:#B18CFF}
+      .upload-text{font-size:1.2rem;color:#E9E7F1;margin-bottom:.5rem;font-weight:600}
+      .upload-subtext{color:#c9c4d6;font-size:.9rem}
+      .file-input{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer}
+      .upload-btn{background:linear-gradient(135deg,#8a2be2,#5b19a6);color:#fff;border:none;padding:.75rem 2rem;border-radius:25px;cursor:pointer;font-weight:600;font-size:1rem;transition:all .3s ease;margin-top:1rem}
+      .upload-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 12px rgba(138,43,226,.4)}
+      .upload-btn:disabled{opacity:.6;cursor:not-allowed}
+      .file-list{margin-top:1rem}
+      .file-item{background:rgba(255,255,255,.05);padding:1rem;border-radius:10px;margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center}
+      .file-info{flex:1}
+      .file-name{color:#E9E7F1;font-weight:600;margin-bottom:.25rem}
+      .file-size{color:#c9c4d6;font-size:.9rem}
+      .file-status{color:#B18CFF;font-size:.9rem;font-weight:600}
 
-      .user-info .organization {
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
-      }
+      .documents-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+      .stat-card{background:rgba(255,255,255,.08);padding:1.5rem;border-radius:15px;text-align:center;border:1px solid rgba(255,255,255,.1)}
+      .stat-number{font-size:2rem;font-weight:700;color:#B18CFF;margin-bottom:.5rem}
+      .stat-label{color:#c9c4d6;font-size:.9rem}
 
-      .logout-btn {
-        background: linear-gradient(45deg, #ff6b6b, #ee5a52);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: transform 0.3s ease;
-      }
+      .documents-list{max-height:600px;overflow-y:auto}
+      .document-item{background:rgba(255,255,255,.08);padding:1.5rem;border-radius:15px;margin-bottom:1rem;border:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;transition:all .3s ease}
+      .document-item:hover{background:rgba(255,255,255,.12);transform:translateY(-2px)}
+      .document-info{flex:1}
+      .document-name{color:#E9E7F1;font-weight:600;font-size:1.1rem;margin-bottom:.5rem}
+      .document-details{color:#c9c4d6;font-size:.9rem;display:flex;gap:1rem;flex-wrap:wrap}
+      .document-actions{display:flex;gap:.5rem}
+      .action-btn{padding:.5rem 1rem;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .3s ease}
+      .delete-btn{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.3)}
+      .delete-btn:hover{background:rgba(220,53,69,.3);transform:translateY(-1px)}
 
-      .logout-btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .main-container {
-        max-width: 1200px;
-        margin: 0 auto;
-      }
-
-      .documents-container {
-        background: white;
-        padding: 3rem;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        position: relative;
-        overflow: hidden;
-      }
-
-      .documents-container::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-      }
-
-      .documents-header {
-        text-align: center;
-        margin-bottom: 2rem;
-      }
-
-      .documents-header h2 {
-        color: #667eea;
-        font-size: 1.8rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-      }
-
-      .documents-header p {
-        color: #666;
-        font-size: 1rem;
-      }
-
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .stat-card {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        text-align: center;
-      }
-
-      .stat-number {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-      }
-
-      .stat-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
-      }
-
-      .documents-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 2rem;
-        background: white;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-      }
-
-      .documents-table th {
-        background: #f8f9fa;
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        color: #495057;
-        border-bottom: 2px solid #dee2e6;
-      }
-
-      .documents-table td {
-        padding: 1rem;
-        border-bottom: 1px solid #dee2e6;
-        color: #495057;
-      }
-
-      .documents-table tr:hover {
-        background: #f8f9fa;
-      }
-
-      .file-type {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-
-      .file-type.pdf {
-        background: #dc3545;
-        color: white;
-      }
-
-      .file-type.docx {
-        background: #007bff;
-        color: white;
-      }
-
-      .file-type.txt {
-        background: #6c757d;
-        color: white;
-      }
-
-      .file-type.csv {
-        background: #28a745;
-        color: white;
-      }
-
-      .delete-btn {
-        background: linear-gradient(45deg, #dc3545, #c82333);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: transform 0.3s ease;
-      }
-
-      .delete-btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .delete-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-
-      .message {
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        text-align: center;
-        font-weight: 500;
-      }
-
-      .message.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-
-      .message.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-
-      .loading {
-        text-align: center;
-        padding: 2rem;
-        color: #666;
-      }
-
-      .spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 1rem;
-      }
-
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      .no-documents {
-        text-align: center;
-        padding: 3rem;
-        color: #666;
-      }
-
-      .no-documents-icon {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-      }
-
-      .navigation {
-        text-align: center;
-        margin-top: 2rem;
-      }
-
-      .nav-btn {
-        display: inline-block;
-        background: linear-gradient(45deg, #28a745, #20c997);
-        color: white;
-        text-decoration: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        font-weight: 600;
-        margin: 0 0.5rem;
-        transition: transform 0.3s ease;
-      }
-
-      .nav-btn:hover {
-        transform: translateY(-2px);
-        color: white;
-        text-decoration: none;
-      }
-
-      .upload-btn {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-      }
-
-      @media (max-width: 768px) {
-        .header {
-          flex-direction: column;
-          text-align: center;
-        }
-
-        .user-info {
-          text-align: center;
-        }
-
-        .documents-container {
-          padding: 2rem;
-        }
-
-        .documents-table {
-          font-size: 0.9rem;
-        }
-
-        .documents-table th,
-        .documents-table td {
-          padding: 0.75rem 0.5rem;
-        }
-
-        .stats-grid {
-          grid-template-columns: 1fr;
-        }
-      }
+      /* Messages */
+      .message{padding:1rem;border-radius:8px;margin-bottom:1rem;text-align:center;font-weight:500}
+      .message.success{background:rgba(40,167,69,.2);color:#28a745;border:1px solid rgba(40,167,69,.3)}
+      .message.error{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.3)}
+      .loading{text-align:center;color:#c9c4d6;padding:2rem}
+      .no-documents{text-align:center;color:#c9c4d6;padding:3rem;font-size:1.1rem}
     </style>
   </head>
   <body>
-    <div class="main-container">
-      <!-- Header with user info -->
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="logo-wrapper">
+          <img src="https://i.pinimg.com/1200x/c4/dd/47/c4dd475a926160c734876937ce9aafe4.jpg" alt="RAG ChatBot" class="logo-image">
+          <div class="logo-text">RAG ChatBot</div>
+        </div>
+        <ul class="nav-links">
+          <li><a href="/admin-dashboard">Dashboard</a></li>
+          <li><a href="#" onclick="logout()">Logout</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Header -->
       <div class="header">
-        <div>
-          <h1>Document Management</h1>
+        <h1 class="welcome-message">Document Management</h1>
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">Username:</div><div class="info-value" id="adminUsername">Loading...</div></div>
+          <div class="info-item"><div class="info-label">Role:</div><div class="info-value" id="adminRole">Admin</div></div>
+          <div class="info-item"><div class="info-label">Organization:</div><div class="info-value" id="adminOrganization">Loading...</div></div>
         </div>
-        <div class="user-info">
-          <div class="username" id="username">Loading...</div>
-          <div class="organization" id="organization">Loading...</div>
-        </div>
-        <button class="logout-btn" onclick="logout()">Logout</button>
       </div>
 
-      <!-- Main documents container -->
+      <div id="message" class="message" style="display:none;"></div>
+
       <div class="documents-container">
         <div class="documents-header">
-          <h2>📚 Document Management</h2>
-          <p>Manage documents in your organization's knowledge base</p>
+          <h2>📚 Organization Documents</h2>
+          <p>Manage and view all uploaded documents in your organization</p>
         </div>
 
-        <div id="message"></div>
-
-        <!-- Statistics -->
-        <div class="stats-grid" id="statsGrid" style="display: none;">
-          <div class="stat-card">
-            <div class="stat-number" id="totalDocuments">0</div>
-            <div class="stat-label">Total Documents</div>
+        <!-- Upload Section -->
+        <div class="upload-section">
+          <div class="upload-header">
+            <h3>📤 Upload New Documents</h3>
+            <p>Upload new documents to your organization's knowledge base</p>
           </div>
-          <div class="stat-card">
-            <div class="stat-number" id="totalChunks">0</div>
-            <div class="stat-label">Total Chunks</div>
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Drag and drop files here</div>
+            <div class="upload-subtext">or click to browse files</div>
+            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt" multiple>
           </div>
-          <div class="stat-card">
-            <div class="stat-number" id="totalSize">0</div>
-            <div class="stat-label">Total Size</div>
-          </div>
+          <button id="uploadBtn" class="upload-btn" onclick="uploadFiles()" disabled>Upload Files</button>
+          <div class="file-list" id="fileList"></div>
         </div>
 
-        <!-- Documents Table -->
-        <div id="documentsContent">
-          <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Loading documents...</p>
-          </div>
+        <div class="documents-stats" id="documentsStats">
+          <div class="stat-card"><div class="stat-number" id="totalDocuments">0</div><div class="stat-label">Total Documents</div></div>
+          <div class="stat-card"><div class="stat-number" id="totalChunks">0</div><div class="stat-label">Total Chunks</div></div>
+          <div class="stat-card"><div class="stat-number" id="totalSize">0 MB</div><div class="stat-label">Total Size</div></div>
         </div>
 
-        <div class="navigation">
-          <button class="nav-btn" onclick="loadDocuments()" style="background: linear-gradient(45deg, #17a2b8, #138496);">🔄 Refresh</button>
-          <a href="/admin-upload" class="nav-btn upload-btn">📁 Upload New Document</a>
-          <a href="/admin-users" class="nav-btn">👥 Manage Users</a>
-          <a href="/change-password" class="nav-btn" style="background: linear-gradient(45deg, #17a2b8, #138496);">🔐 Change Password</a>
-          <a href="/dashboard" class="nav-btn">← Back to Dashboard</a>
-          <a href="/" class="nav-btn">🏠 Home</a>
-        </div>
+        <div class="documents-list" id="documentsList"><div class="loading">Loading documents...</div></div>
       </div>
     </div>
 
     <script>
-      // Check if user is logged in and is admin
-      document.addEventListener("DOMContentLoaded", function () {
-        checkAuth();
+      let currentUser=null;
+      let selectedFiles=[];
+
+      document.addEventListener('DOMContentLoaded',function(){
+        loadUserInfo();
         loadDocuments();
+        setupFileUpload();
       });
 
-      function checkAuth() {
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-        
-        if (!user.id || user.role !== "admin") {
-          showMessage("Access denied. Admin privileges required.", "error");
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 2000);
-          return;
+      function loadUserInfo(){
+        const userStr=sessionStorage.getItem("user");
+        if(userStr){
+          try{
+            currentUser=JSON.parse(userStr);
+            if(currentUser.role!=="admin"){ window.location.href="/dashboard"; return; }
+            document.getElementById("adminUsername").textContent=currentUser.username||"N/A";
+            document.getElementById("adminRole").textContent=currentUser.role||"N/A";
+            document.getElementById("adminOrganization").textContent=currentUser.organization_name||"N/A";
+          }catch(error){
+            console.error("Error parsing user data:",error);
+            showMessage("Error loading user information.","error");
+          }
+        }else{
+          showMessage("No user information found. Please log in again.","error");
+          setTimeout(()=>{ window.location.href="/login"; },2000);
         }
-
-        // Display user info
-        document.getElementById("username").textContent = `👤 ${user.username}`;
-        document.getElementById("organization").textContent = `🏢 ${user.organization_name || "Unknown Organization"}`;
       }
 
-      async function loadDocuments() {
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-        
-        if (!user.id || !user.organization_id) {
-          showMessage("User session expired. Please login again.", "error");
-          return;
-        }
-
-        // Show loading state
-        const content = document.getElementById("documentsContent");
-        content.innerHTML = `
-          <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Loading documents...</p>
-          </div>
-        `;
-
-        try {
-          const response = await fetch(`/documents/${user.organization_id}?user_id=${user.id}`);
-          const data = await response.json();
-
-          if (response.ok) {
+      async function loadDocuments(){
+        try{
+          const response=await fetch(`/documents/${currentUser.organization_id}?user_id=${currentUser.id}`);
+          if(response.ok){
+            const data=await response.json();
             displayDocuments(data.documents);
             updateStats(data.documents);
-            if (data.documents.length > 0) {
-              showMessage(`✅ Loaded ${data.documents.length} document(s) successfully!`, "success");
-            }
-          } else {
-            showMessage(data.detail || "Failed to load documents.", "error");
-            // Show empty state on error
-            content.innerHTML = `
-              <div class="no-documents">
-                <div class="no-documents-icon">❌</div>
-                <h3>Error loading documents</h3>
-                <p>${data.detail || "Failed to load documents"}</p>
-                <p>Click refresh to try again.</p>
+          }else{
+            throw new Error('Failed to load documents');
+          }
+        }catch(error){
+          console.error('Error loading documents:',error);
+          document.getElementById('documentsList').innerHTML='<div class="no-documents">Error loading documents</div>';
+        }
+      }
+
+      function displayDocuments(documents){
+        const el=document.getElementById('documentsList');
+        if(!documents.length){ el.innerHTML='<div class="no-documents">No documents uploaded yet</div>'; return; }
+        el.innerHTML=documents.map(doc=>`
+          <div class="document-item">
+            <div class="document-info">
+              <div class="document-name">${doc.filename}</div>
+              <div class="document-details">
+                <span>Type: ${doc.filetype}</span>
+                <span>Chunks: ${doc.chunk_count}</span>
+                <span>Size: ${formatFileSize(doc.file_size||0)}</span>
+                <span>Uploaded: ${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '—'}</span>
               </div>
-            `;
-          }
-        } catch (error) {
-          console.error("Error loading documents:", error);
-          showMessage("An error occurred while loading documents.", "error");
-          // Show empty state on error
-          content.innerHTML = `
-            <div class="no-documents">
-              <div class="no-documents-icon">❌</div>
-              <h3>Error loading documents</h3>
-              <p>Network error occurred</p>
-              <p>Click refresh to try again.</p>
             </div>
-          `;
+            <div class="document-actions">
+              <button class="action-btn delete-btn" onclick="deleteDocument('${doc.id}')">Delete</button>
+            </div>
+          </div>`).join('');
+      }
+
+      function updateStats(docs){
+        const totalDocs=docs.length;
+        const totalChunks=docs.reduce((s,d)=>s+(d.chunk_count||0),0);
+        const totalSize=docs.reduce((s,d)=>s+(d.file_size||0),0);
+        document.getElementById('totalDocuments').textContent=totalDocs;
+        document.getElementById('totalChunks').textContent=totalChunks;
+        document.getElementById('totalSize').textContent=formatFileSize(totalSize);
+      }
+
+      function formatFileSize(bytes){
+        if(bytes===0) return '0 Bytes';
+        const k=1024, sizes=['Bytes','KB','MB','GB','TB'];
+        const i=Math.floor(Math.log(bytes)/Math.log(k));
+        return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i];
+      }
+
+      async function deleteDocument(documentId){
+        if(!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
+        try{
+          const res=await fetch(`/documents/${documentId}?user_id=${currentUser.id}`,{method:'DELETE'});
+          if(res.ok){ showMessage('Document deleted successfully!','success'); loadDocuments(); }
+          else{ const err=await res.json(); throw new Error(err.detail||'Delete failed'); }
+        }catch(e){
+          console.error('Delete error:',e);
+          showMessage(`Delete failed: ${e.message}`,'error');
         }
       }
 
-      function displayDocuments(documents) {
-        const content = document.getElementById("documentsContent");
-        
-        if (documents.length === 0) {
-          content.innerHTML = `
-            <div class="no-documents">
-              <div class="no-documents-icon">📚</div>
-              <h3>No documents found</h3>
-              <p>You haven't uploaded any documents yet.</p>
-              <p>Click "Upload New Document" to get started!</p>
-            </div>
-          `;
-          return;
-        }
+      function showMessage(msg,type){
+        const box=document.getElementById('message');
+        box.textContent=msg; box.className=`message ${type}`; box.style.display='block';
+        if(type==='success') setTimeout(()=>{ box.style.display='none'; },3000);
+      }
 
-        let tableHTML = `
-          <table class="documents-table">
-            <thead>
-              <tr>
-                <th>Filename</th>
-                <th>Type</th>
-                <th>Chunks</th>
-                <th>Uploaded</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
-
-        documents.forEach(doc => {
-          const uploadDate = new Date(doc.uploaded_at).toLocaleDateString();
-          const fileTypeClass = getFileTypeClass(doc.filetype);
-          
-          tableHTML += `
-            <tr>
-              <td><strong>${doc.filename}</strong></td>
-              <td><span class="file-type ${fileTypeClass}">${doc.filetype}</span></td>
-              <td>${doc.chunk_count}</td>
-              <td>${uploadDate}</td>
-              <td>
-                <button class="delete-btn" onclick="deleteDocument('${doc.id}', '${doc.filename}')">
-                  🗑 Delete
-                </button>
-              </td>
-            </tr>
-          `;
+      // Upload
+      function setupFileUpload(){
+        const area=document.getElementById('uploadArea');
+        const input=document.getElementById('fileInput');
+        area.addEventListener('click',()=>input.click());
+        input.addEventListener('change',handleFileSelect);
+        area.addEventListener('dragover',e=>{ e.preventDefault(); area.classList.add('dragover'); });
+        area.addEventListener('dragleave',()=>area.classList.remove('dragover'));
+        area.addEventListener('drop',e=>{
+          e.preventDefault(); area.classList.remove('dragover');
+          const files=Array.from(e.dataTransfer.files); handleFiles(files);
         });
-
-        tableHTML += `
-            </tbody>
-          </table>
-        `;
-
-        content.innerHTML = tableHTML;
       }
 
-      function getFileTypeClass(filetype) {
-        const type = filetype.toLowerCase();
-        if (type === 'pdf') return 'pdf';
-        if (type === 'docx') return 'docx';
-        if (type === 'txt') return 'txt';
-        if (type === 'csv') return 'csv';
-        return 'txt'; // default
+      function handleFileSelect(e){ handleFiles(Array.from(e.target.files)); }
+      function handleFiles(files){
+        selectedFiles=files.filter(f=>{
+          const ext='.'+f.name.split('.').pop().toLowerCase();
+          return ['.pdf','.doc','.docx','.txt'].includes(ext);
+        });
+        const btn=document.getElementById('uploadBtn');
+        btn.disabled=selectedFiles.length===0;
+        displayFileList();
+        if(selectedFiles.length) showMessage(`Selected ${selectedFiles.length} file(s)`,'success');
       }
 
-      function updateStats(documents) {
-        const totalDocs = documents.length;
-        const totalChunks = documents.reduce((sum, doc) => sum + doc.chunk_count, 0);
-        
-        document.getElementById("totalDocuments").textContent = totalDocs;
-        document.getElementById("totalChunks").textContent = totalChunks;
-        document.getElementById("totalSize").textContent = totalDocs; // Simplified for now
-        
-        document.getElementById("statsGrid").style.display = "grid";
+      function displayFileList(){
+        const list=document.getElementById('fileList');
+        list.innerHTML=selectedFiles.map(f=>`
+          <div class="file-item">
+            <div class="file-info">
+              <div class="file-name">${f.name}</div>
+              <div class="file-size">${formatFileSize(f.size)}</div>
+            </div>
+            <div class="file-status">Ready to upload</div>
+          </div>`).join('');
       }
 
-      async function deleteDocument(documentId, filename) {
-        if (!confirm(`Are you sure you want to delete "${filename}"? This action cannot be undone.`)) {
-          return;
-        }
-
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-        
-        if (!user.id) {
-          showMessage("User session expired. Please login again.", "error");
-          return;
-        }
-
-        try {
-          const response = await fetch(`/documents/${documentId}?user_id=${user.id}`, {
-            method: "DELETE"
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            showMessage(`✅ Document "${filename}" deleted successfully!`, "success");
-            // Reload documents
-            setTimeout(() => {
-              loadDocuments();
-            }, 1000);
-          } else {
-            showMessage(data.detail || "Failed to delete document.", "error");
+      async function uploadFiles(){
+        if(!selectedFiles.length){ showMessage('Please select files to upload','error'); return; }
+        const btn=document.getElementById('uploadBtn');
+        btn.disabled=true; btn.textContent='Uploading...';
+        try{
+          for(const file of selectedFiles){
+            const fd=new FormData();
+            fd.append('file',file);
+            fd.append('org_id',currentUser.organization_id);
+            fd.append('user_id',currentUser.id);
+            const res=await fetch('/upload',{method:'POST',body:fd});
+            if(!res.ok){
+              const err=await res.json();
+              throw new Error(err.detail||'Upload failed');
+            }
           }
-        } catch (error) {
-          console.error("Error deleting document:", error);
-          showMessage("An error occurred while deleting the document.", "error");
+          showMessage('Files uploaded successfully!','success');
+          selectedFiles=[]; document.getElementById('fileInput').value=''; document.getElementById('fileList').innerHTML='';
+          btn.disabled=true; btn.textContent='Upload Files';
+          loadDocuments();
+        }catch(e){
+          console.error('Upload error:',e);
+          showMessage(`Upload failed: ${e.message}`,'error');
+          btn.disabled=false; btn.textContent='Upload Files';
         }
       }
 
-      function showMessage(message, type) {
-        const messageDiv = document.getElementById("message");
-        messageDiv.textContent = message;
-        messageDiv.className = `message ${type}`;
-        messageDiv.style.display = "block";
-        
-        // Auto-hide success messages
-        if (type === "success") {
-          setTimeout(() => {
-            messageDiv.style.display = "none";
-          }, 5000);
-        }
-      }
-
-      function logout() {
-        sessionStorage.removeItem("user");
-        window.location.href = "/login";
-      }
+      function logout(){ sessionStorage.removeItem("user"); window.location.href="/"; }
     </script>
   </body>
 </html>

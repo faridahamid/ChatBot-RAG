@@ -1,6 +1,8 @@
 import os
 import uuid
 from typing import List, Optional, Tuple
+from datetime import datetime, timedelta
+
 
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -70,13 +72,13 @@ def dashboard_page():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Dashboard page not found</h1>", status_code=404)
 
-@app.get("/admin-upload", response_class=HTMLResponse)
-def admin_upload_page():
-    try:
-        with open("Frontend/pages/admin_upload.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Admin upload page not found</h1>", status_code=404)
+# @app.get("/admin-upload", response_class=HTMLResponse)
+# def admin_upload_page():
+#     try:
+#         with open("Frontend/pages/admin_upload.html", "r", encoding="utf-8") as f:
+#             return HTMLResponse(content=f.read())
+#     except FileNotFoundError:
+#         return HTMLResponse(content="<h1>Admin upload page not found</h1>", status_code=404)
 
 @app.get("/admin-users", response_class=HTMLResponse)
 def admin_users_page():
@@ -110,6 +112,22 @@ def admin_feedback_page():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Admin feedback page not found</h1>", status_code=404)
 
+@app.get("/admin-chat", response_class=HTMLResponse)
+def admin_chat_page():
+    try:
+        with open("Frontend/pages/admin-chat.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin chat page not found</h1>", status_code=404)
+
+@app.get("/admin-dashboard", response_class=HTMLResponse)
+def admin_dashboard_page():
+    try:
+        with open("Frontend/pages/admin_dashboard.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin dashboard page not found</h1>", status_code=404)
+
 @app.get("/change-password", response_class=HTMLResponse)
 def change_password_page():
     try:
@@ -117,6 +135,41 @@ def change_password_page():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Password change page not found</h1>", status_code=404)
+
+@app.post("/change-password")
+def change_password(
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    user_id: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    if not current_password or not new_password:
+        raise HTTPException(status_code=400, detail="Both current and new password are required")
+    
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long")
+    
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID is required")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    from admin_auth import verify_password
+    if not verify_password(current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Hash new password
+    from admin_auth import hash_password
+    new_password_hash = hash_password(new_password)
+    
+    # Update password
+    user.password_hash = new_password_hash
+    db.commit()
+    
+    return {"message": "Password changed successfully"}
 
 # ---------- STATIC ----------
 @app.get("/css/{filename}")
@@ -600,6 +653,33 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
     return JSONResponse({"id": user.id, "username": user.username})
 
+@app.get("/users/{org_id}", response_class=JSONResponse)
+def get_org_users(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if str(user.organization_id) != str(org_id):
+        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+    if (user.role or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view users")
+    
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
+    if not org:
+        raise HTTPException(status_code=403, detail="Organization is inactive")
+
+    users = db.query(User).filter(User.organization_id == org_id, User.is_active == True).all()
+    
+    result = []
+    for user in users:
+        result.append({
+            "id": str(user.id),
+            "username": user.username,
+            "role": user.role,
+            "created_at": user.created_at.isoformat() if user.created_at else None
+        })
+    
+    return result
+
 @app.post("/feedbacks", response_model=FeedbackResponse)
 def create_feedback(payload: FeedbackCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id, User.is_active == True).first()
@@ -739,6 +819,7 @@ def get_feedback_stats(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: S
         "unread_feedbacks": unread_feedbacks,
         "rating_distribution": {str(rating): count for rating, count in rating_distribution}
     })
+
 
 @app.get("/health")
 def health_check():

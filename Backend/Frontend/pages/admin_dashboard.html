@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard - RAG ChatBot</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+
+    body{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+      line-height:1.6;color:#E9E7F1;
+      background:
+        radial-gradient(1200px 600px at 20% -10%,rgba(151,71,255,.35),transparent 60%),
+        radial-gradient(1200px 800px at 110% 10%,rgba(82,0,204,.35),transparent 60%),
+        linear-gradient(145deg,#0f0b17 0%,#1a1226 40%,#241437 100%);
+      min-height:100vh;
+      padding-top:72px; /* room for fixed navbar */
+    }
+
+    /* Navbar (text links like welcome page) */
+    .navbar{
+      background:rgba(24,16,37,.7);
+      backdrop-filter:blur(12px);
+      padding:1rem 2rem;
+      position:fixed;top:0;left:0;right:0;z-index:1000;
+      box-shadow:0 2px 14px rgba(0,0,0,.35);
+    }
+    .nav-container{
+      max-width:1200px;margin:0 auto;
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .logo-wrapper{display:flex;align-items:center;gap:10px}
+    .logo-image{height:40px;width:40px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+    .logo-text{font-size:1.4rem;font-weight:700;color:#B18CFF}
+    .nav-links{display:flex;list-style:none;gap:2rem}
+    .nav-links a{
+      text-decoration:none;color:#E9E7F1;font-weight:600;
+      transition:color .25s ease,opacity .25s ease;
+      padding:.25rem 0;
+    }
+    .nav-links a:hover,.nav-links a.active{color:#B18CFF}
+
+    /* Page shell */
+    .container{max-width:1400px;margin:0 auto;padding:1.25rem 2rem 2rem}
+    .header{
+      text-align:center;margin-bottom:2rem;padding:2rem;
+      background:rgba(255,255,255,.05);
+      border-radius:15px;border:1px solid rgba(255,255,255,.1);
+    }
+    .welcome-message{
+      font-size:2.5rem;margin-bottom:1.5rem;
+      background:linear-gradient(135deg,#B18CFF,#8a2be2);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1.5rem}
+    .info-item{background:rgba(255,255,255,.08);padding:1rem;border-radius:10px;border:1px solid rgba(255,255,255,.1)}
+    .info-label{color:#B18CFF;font-weight:600;margin-bottom:.5rem}
+    .info-value{color:#fff;font-size:1.1rem}
+
+    /* Admin nav cards */
+    .admin-nav-section{margin-top:1rem;margin-bottom:3rem}
+    .admin-nav-title{font-size:2rem;color:#B18CFF;text-align:center;margin-bottom:2rem}
+    .admin-nav-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem}
+    .admin-nav-card{
+      background:rgba(255,255,255,.08);padding:2rem;border-radius:15px;
+      border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:all .3s ease;text-align:center;
+    }
+    .admin-nav-card:hover{background:rgba(255,255,255,.12);transform:translateY(-5px);box-shadow:0 10px 25px rgba(138,43,226,.3)}
+    .admin-nav-card-icon{font-size:3rem;margin-bottom:1rem}
+    .admin-nav-card-title{font-size:1.5rem;color:#E9E7F1;font-weight:600;margin-bottom:.5rem}
+    .admin-nav-card-description{color:#c9c4d6;font-size:1rem}
+
+    /* Messages (alerts) */
+    .message{padding:1rem;border-radius:8px;margin:1rem 0;text-align:center;font-weight:500;display:none}
+    .message.success{background:rgba(40,167,69,.2);color:#28a745;border:1px solid rgba(40,167,69,.3)}
+    .message.error{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.3)}
+
+    /* Change Password Modal (same pattern as admin-chat) */
+    .modal-overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.5);
+      display:none;align-items:center;justify-content:center;z-index:1100;
+    }
+    .modal-overlay.active{display:flex}
+    .modal{
+      width:min(520px,92vw);background:rgba(25,18,37,.95);
+      border:1px solid rgba(255,255,255,.12);border-radius:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.45);padding:1rem 1rem 1.25rem;
+    }
+    .modal-header{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem
+    }
+    .modal-title{color:#E9E7F1;font-size:1.25rem;font-weight:700}
+    .modal-close{
+      background:transparent;border:none;color:#c9c4d6;font-size:1.75rem;cursor:pointer;line-height:1
+    }
+    .modal-form{margin-top:.5rem}
+    .form-group{margin-bottom:1rem}
+    .form-group label{display:block;margin-bottom:.4rem;color:#B18CFF;font-weight:600}
+    .form-group input{
+      width:100%;padding:.75rem;border:1px solid rgba(255,255,255,.2);
+      border-radius:10px;background:rgba(255,255,255,.08);color:#E9E7F1;font-size:1rem
+    }
+    .form-group input::placeholder{color:#bfb7cc}
+    .form-group input:focus{outline:none;border-color:#B18CFF;box-shadow:0 0 0 2px rgba(177,140,255,.15)}
+    .modal-actions{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1rem}
+    .modal-btn{
+      border:none;padding:.7rem 1.1rem;border-radius:10px;cursor:pointer;font-weight:700
+    }
+    .modal-btn.primary{background:linear-gradient(135deg,#8a2be2,#5b19a6);color:#fff}
+    .modal-btn.secondary{background:rgba(255,255,255,.1);color:#c9c4d6;border:1px solid rgba(255,255,255,.2)}
+    .modal-btn.primary:hover{transform:translateY(-1px)}
+    .modal-btn.secondary:hover{background:rgba(255,255,255,.15)}
+
+    @media (max-width:720px){.nav-links{gap:1rem;font-size:.95rem}}
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo-wrapper">
+        <img src="https://i.pinimg.com/1200x/c4/dd/47/c4dd475a926160c734876937ce9aafe4.jpg" alt="RAG ChatBot" class="logo-image">
+        <div class="logo-text">RAG ChatBot</div>
+      </div>
+      <ul class="nav-links">
+        
+        <li><a href="#" onclick="openChangePasswordModal()">Change Password</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1 class="welcome-message">Admin Dashboard</h1>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Username:</div>
+          <div class="info-value" id="adminUsername">Loading...</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Role:</div>
+          <div class="info-value" id="adminRole">Admin</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Organization:</div>
+          <div class="info-value" id="adminOrganization">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <!-- Admin navigation cards -->
+    <div class="admin-nav-section" id="adminNavSection">
+      <h2 class="admin-nav-title">Admin Functions</h2>
+      <div class="admin-nav-grid">
+        <div class="admin-nav-card" onclick="redirectToPage('admin-documents')">
+          <div class="admin-nav-card-icon">📄</div>
+          <div class="admin-nav-card-title">Manage Documents</div>
+          <div class="admin-nav-card-description">Upload, view, and manage organization documents</div>
+        </div>
+        <div class="admin-nav-card" onclick="redirectToPage('admin-users')">
+          <div class="admin-nav-card-icon">👥</div>
+          <div class="admin-nav-card-title">Manage Users</div>
+          <div class="admin-nav-card-description">Create and manage user accounts</div>
+        </div>
+        <div class="admin-nav-card" onclick="redirectToPage('admin-feedback')">
+          <div class="admin-nav-card-icon">💬</div>
+          <div class="admin-nav-card-title">View Feedback</div>
+          <div class="admin-nav-card-description">Review user feedback and ratings</div>
+        </div>
+        <div class="admin-nav-card" onclick="redirectToPage('admin-chat')">
+          <div class="admin-nav-card-icon">🤖</div>
+          <div class="admin-nav-card-title">Chat</div>
+          <div class="admin-nav-card-description">Chat with AI assistant</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal (same UX as admin-chat) -->
+  <div class="modal-overlay" id="changePasswordModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Change Password</h3>
+        <button class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
+      </div>
+      <form class="modal-form" id="changePasswordForm">
+        <div class="form-group">
+          <label for="currentPassword">Current Password</label>
+          <input type="password" id="currentPassword" name="currentPassword" required placeholder="Enter current password">
+        </div>
+        <div class="form-group">
+          <label for="newPassword">New Password</label>
+          <input type="password" id="newPassword" name="newPassword" required placeholder="Enter new password">
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm New Password</label>
+          <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm new password">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="modal-btn secondary" onclick="closeChangePasswordModal()">Cancel</button>
+          <button type="submit" class="modal-btn primary">Change Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+
+    document.addEventListener('DOMContentLoaded', function(){
+      loadUserInfo();
+
+      // Wire the change-password form (same behavior as admin-chat)
+      const changePasswordForm = document.getElementById('changePasswordForm');
+      changePasswordForm.addEventListener('submit', async function(e){
+        e.preventDefault();
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (newPassword !== confirmPassword) { showMessage("New passwords do not match.", "error"); return; }
+        if (!currentUser || !currentUser.id) { showMessage("Session expired. Please log in again.", "error"); return; }
+        if (newPassword.length < 6) { showMessage("New password must be at least 6 characters long.", "error"); return; }
+
+        try{
+          const fd = new FormData();
+          fd.append("current_password", currentPassword);
+          fd.append("new_password", newPassword);
+          fd.append("user_id", currentUser.id);
+
+          const res = await fetch("/change-password", { method: "POST", body: fd });
+          const data = await res.json();
+          if (res.ok){
+            closeChangePasswordModal();
+            showMessage("Password changed successfully!", "success");
+          } else {
+            showMessage(data.detail || "Failed to change password", "error");
+          }
+        } catch(err){
+          console.error("Change password error:", err);
+          showMessage("Error changing password. Please try again.", "error");
+        }
+      });
+
+      // click outside to close modal
+      const modalOverlay = document.getElementById('changePasswordModal');
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeChangePasswordModal();
+      });
+    });
+
+    function loadUserInfo(){
+      const userStr = sessionStorage.getItem("user");
+      if (!userStr){
+        showMessage("No user information found. Please log in again.", "error");
+        setTimeout(()=>location.href="/login", 1500);
+        return;
+      }
+      try{
+        currentUser = JSON.parse(userStr);
+        if ((currentUser.role||"").toLowerCase() !== "admin"){
+          location.href="/dashboard"; return;
+        }
+        document.getElementById("adminUsername").textContent = currentUser.username || "N/A";
+        document.getElementById("adminRole").textContent = currentUser.role || "N/A";
+        document.getElementById("adminOrganization").textContent = currentUser.organization_name || "N/A";
+      }catch(e){
+        console.error("Error parsing user:", e);
+        showMessage("Error loading user information.", "error");
+      }
+    }
+
+    function redirectToPage(page){ location.href = `/${page}`; }
+
+    function showMessage(text, type){
+      const el = document.getElementById("message");
+      el.textContent = text;
+      el.className = `message ${type}`;
+      el.style.display = "block";
+      if (type === "success"){ setTimeout(()=> el.style.display="none", 3000); }
+    }
+
+    function openChangePasswordModal(){
+      document.getElementById('changePasswordModal').classList.add('active');
+      setTimeout(()=>document.getElementById('currentPassword').focus(), 50);
+    }
+    function closeChangePasswordModal(){
+      document.getElementById('changePasswordModal').classList.remove('active');
+      document.getElementById('changePasswordForm').reset();
+    }
+
+    function logout(){
+      sessionStorage.removeItem("user");
+      location.href = "/";
+    }
+  </script>
+</body>
+</html>

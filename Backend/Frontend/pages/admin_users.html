@@ -4,681 +4,198 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin User Management - RAG ChatBot</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      * {margin:0;padding:0;box-sizing:border-box}
+      body {
+        font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+        line-height:1.6;
+        color:#E9E7F1;
+        background:radial-gradient(1200px 600px at 20% -10%,rgba(151,71,255,.35),transparent 60%),
+                   radial-gradient(1200px 800px at 110% 10%,rgba(82,0,204,.35),transparent 60%),
+                   linear-gradient(145deg,#0f0b17 0%,#1a1226 40%,#241437 100%);
+        min-height:100vh;
       }
 
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 20px;
+      .container {
+        max-width:1000px;
+        margin:0 auto;
+        padding:100px 2rem 2rem 2rem;
       }
 
       .header {
-        background: white;
-        padding: 1.5rem 2rem;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
+        text-align:center;
+        margin-bottom:2rem;
+        padding:2rem;
+        background:rgba(255,255,255,0.05);
+        border-radius:15px;
+        border:1px solid rgba(255,255,255,0.1);
       }
 
-      .header h1 {
-        color: #667eea;
-        font-size: 1.8rem;
-        font-weight: 700;
+      .welcome-message {
+        font-size:2.5rem;
+        margin-bottom:1.5rem;
+        background:linear-gradient(135deg,#B18CFF,#8a2be2);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+        background-clip:text;
       }
 
-      .user-info {
-        text-align: right;
-        color: #666;
+      .info-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+        gap:1rem;
+        margin-top:1.5rem;
       }
 
-      .user-info .username {
-        font-weight: 600;
-        color: #667eea;
+      .info-item {
+        background:rgba(255,255,255,0.08);
+        padding:1rem;
+        border-radius:10px;
+        border:1px solid rgba(255,255,255,0.1);
       }
+      .info-label {color:#B18CFF;font-weight:600;margin-bottom:0.5rem}
+      .info-value {color:#fff;font-size:1.1rem}
 
-      .user-info .organization {
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
+      /* Navbar */
+      .navbar {
+        background:rgba(24,16,37,0.7);
+        backdrop-filter:blur(12px);
+        padding:1rem 2rem;
+        position:fixed;
+        top:0;left:0;width:100%;
+        z-index:1000;
+        box-shadow:0 2px 14px rgba(0,0,0,0.35);
       }
+      .nav-container {
+        max-width:1200px;
+        margin:0 auto;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+      }
+      .logo-wrapper {display:flex;align-items:center;gap:10px}
+      .logo-image {
+        height:40px;width:40px;border-radius:50%;
+        object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.4);
+      }
+      .logo-text {font-size:1.4rem;font-weight:bold;color:#B18CFF}
+      .nav-links {display:flex;list-style:none;gap:2rem}
+      .nav-links a {
+        text-decoration:none;
+        color:#E9E7F1;
+        font-weight:600;
+        transition:color 0.3s ease;
+      }
+      .nav-links a:hover {color:#B18CFF}
 
-      .logout-btn {
-        background: linear-gradient(45deg, #ff6b6b, #ee5a52);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: transform 0.3s ease;
+      /* Keep all your other styles unchanged (form, grid, users, etc.) */
+      .content-grid {display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem}
+      @media (max-width:768px){.content-grid{grid-template-columns:1fr}}
+      .create-user-container,.user-list-container{
+        background:rgba(255,255,255,0.05);padding:2rem;border-radius:20px;
+        border:1px solid rgba(255,255,255,0.1);position:relative;overflow:hidden
       }
-
-      .logout-btn:hover {
-        transform: translateY(-2px);
+      .create-user-container::before,.user-list-container::before{
+        content:"";position:absolute;top:0;left:0;right:0;height:4px;
+        background:linear-gradient(45deg,#B18CFF,#8a2be2)
       }
-
-      .main-container {
-        max-width: 1000px;
-        margin: 0 auto;
-      }
-
-      .content-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-        margin-bottom: 2rem;
-      }
-
-      @media (max-width: 768px) {
-        .content-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .create-user-container, .user-list-container {
-        background: white;
-        padding: 2rem;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        position: relative;
-        overflow: hidden;
-      }
-
-      .create-user-container::before, .user-list-container::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-      }
-
-      .section-header {
-        text-align: center;
-        margin-bottom: 2rem;
-      }
-
-      .section-header h2 {
-        color: #667eea;
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-      }
-
-      .section-header p {
-        color: #666;
-        font-size: 0.9rem;
-      }
-
-      .form-group {
-        margin-bottom: 1.5rem;
-      }
-
-      .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: #333;
-        font-weight: 600;
-      }
-
-      .form-group input, .form-group select {
-        width: 100%;
-        padding: 12px 16px;
-        border: 2px solid #e1e5e9;
-        border-radius: 10px;
-        font-size: 16px;
-        transition: border-color 0.3s ease;
-        background: #f8f9fa;
-      }
-
-      .form-group input:focus, .form-group select:focus {
-        outline: none;
-        border-color: #667eea;
-        background: white;
-      }
-
-      .role-selection {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .role-option {
-        flex: 1;
-        text-align: center;
-      }
-
-      .role-option input[type="radio"] {
-        display: none;
-      }
-
-      .role-option label {
-        display: block;
-        padding: 1rem;
-        border: 2px solid #e1e5e9;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background: #f8f9fa;
-      }
-
-      .role-option input[type="radio"]:checked + label {
-        border-color: #667eea;
-        background: #667eea;
-        color: white;
-      }
-
-      .role-option label:hover {
-        border-color: #667eea;
-        transform: translateY(-2px);
-      }
-
-      .create-btn {
-        width: 100%;
-        padding: 14px;
-        background: linear-gradient(45deg, #28a745, #20c997);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.3s ease;
-        margin-bottom: 1rem;
-      }
-
-      .create-btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .create-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-
-      .message {
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        text-align: center;
-        font-weight: 500;
-      }
-
-      .message.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-
-      .message.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-
-      .loading {
-        display: none;
-        text-align: center;
-        margin-top: 1rem;
-      }
-
-      .spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto;
-      }
-
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      .user-list {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #e1e5e9;
-        border-radius: 10px;
-        background: #f8f9fa;
-      }
-
-      .user-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem;
-        border-bottom: 1px solid #e1e5e9;
-        transition: background-color 0.3s ease;
-      }
-
-      .user-item:last-child {
-        border-bottom: none;
-      }
-
-      .user-item:hover {
-        background-color: #e9ecef;
-      }
-
-      .user-info {
-        flex: 1;
-      }
-
-      .user-name {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 0.25rem;
-      }
-
-      .user-role {
-        font-size: 0.9rem;
-        color: #666;
-        padding: 0.25rem 0.5rem;
-        background: #e9ecef;
-        border-radius: 15px;
-        display: inline-block;
-      }
-
-      .user-role.admin {
-        background: #667eea;
-        color: white;
-      }
-
-      .user-role.user {
-        background: #28a745;
-        color: white;
-      }
-
-      .delete-btn {
-        background: linear-gradient(45deg, #dc3545, #c82333);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: transform 0.3s ease;
-      }
-
-      .delete-btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .delete-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-
-      .refresh-btn {
-        background: linear-gradient(45deg, #17a2b8, #138496);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: transform 0.3s ease;
-        margin-bottom: 1rem;
-        width: 100%;
-      }
-
-      .refresh-btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .navigation {
-        text-align: center;
-        margin-top: 2rem;
-      }
-
-      .nav-btn {
-        display: inline-block;
-        background: linear-gradient(45deg, #28a745, #20c997);
-        color: white;
-        text-decoration: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        font-weight: 600;
-        margin: 0 0.5rem;
-        transition: transform 0.3s ease;
-      }
-
-      .nav-btn:hover {
-        transform: translateY(-2px);
-        color: white;
-        text-decoration: none;
-      }
-
-      .empty-state {
-        text-align: center;
-        padding: 2rem;
-        color: #666;
-      }
-
-      .empty-state .icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-      }
+      .section-header{text-align:center;margin-bottom:2rem}
+      .section-header h2{color:#B18CFF;font-size:1.8rem;margin-bottom:0.5rem}
+      .section-header p{color:#c9c4d6;font-size:1rem}
+      .form-group{margin-bottom:1.5rem}
+      .form-group label{display:block;margin-bottom:0.5rem;color:#E9E7F1;font-weight:600}
+      .form-group input{width:100%;padding:0.75rem;border:1px solid rgba(255,255,255,0.2);
+        border-radius:8px;font-size:1rem;background:rgba(255,255,255,0.1);color:#E9E7F1}
+      .form-group input:focus{outline:none;border-color:#B18CFF;background:rgba(255,255,255,0.15)}
+      .form-group input::placeholder{color:#c9c4d6}
+      .create-btn{background:linear-gradient(135deg,#8a2be2,#5b19a6);color:white;
+        border:none;padding:0.75rem 1.5rem;border-radius:25px;cursor:pointer;font-weight:600;font-size:1rem;width:100%}
+      .create-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(138,43,226,0.4)}
+      .create-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+      .btn-danger{background:linear-gradient(135deg,#dc3545,#c82333);color:white;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem}
+      .btn-danger:hover{background:linear-gradient(135deg,#c82333,#a71e2a);transform:translateY(-1px);box-shadow:0 4px 8px rgba(220,53,69,0.3)}
+      .user-actions{display:flex;gap:0.5rem}
+      .users-list{max-height:500px;overflow-y:auto}
+      .user-item{background:rgba(255,255,255,0.08);padding:1rem;border-radius:10px;margin-bottom:1rem;border:1px solid rgba(255,255,255,0.1)}
+      .user-item:hover{background:rgba(255,255,255,0.12);transform:translateY(-2px)}
+      .user-name{color:#E9E7F1;font-weight:600;font-size:1.1rem;margin-bottom:0.5rem}
+      .user-details{color:#c9c4d6;font-size:0.9rem;display:flex;gap:1rem;flex-wrap:wrap}
+      .message{padding:1rem;border-radius:8px;margin-bottom:1rem;text-align:center;font-weight:500}
+      .message.success{background:rgba(40,167,69,0.2);color:#28a745;border:1px solid rgba(40,167,69,0.3)}
+      .message.error{background:rgba(220,53,69,0.2);color:#dc3545;border:1px solid rgba(220,53,69,0.3)}
     </style>
   </head>
   <body>
-    <div class="main-container">
-      <!-- Header with user info -->
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="logo-wrapper">
+          <img src="https://i.pinimg.com/1200x/c4/dd/47/c4dd475a926160c734876937ce9aafe4.jpg" alt="RAG ChatBot" class="logo-image">
+          <div class="logo-text">RAG ChatBot</div>
+        </div>
+        <ul class="nav-links">
+          <li><a href="/admin-dashboard">Dashboard</a></li>
+          <li><a href="#" onclick="logout()">Logout</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Header -->
       <div class="header">
-        <div>
-          <h1>Admin User Management</h1>
+        <h1 class="welcome-message">User Management</h1>
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">Username:</div><div class="info-value" id="adminUsername">Loading...</div></div>
+          <div class="info-item"><div class="info-label">Role:</div><div class="info-value" id="adminRole">Admin</div></div>
+          <div class="info-item"><div class="info-label">Organization:</div><div class="info-value" id="adminOrganization">Loading...</div></div>
         </div>
-        <div class="user-info">
-          <div class="username" id="username">Loading...</div>
-          <div class="organization" id="organization">Loading...</div>
-        </div>
-        <button class="logout-btn" onclick="logout()">Logout</button>
       </div>
 
-      <!-- Main content grid -->
+      <div id="message" class="message" style="display:none;"></div>
+
       <div class="content-grid">
         <!-- Create User Section -->
         <div class="create-user-container">
           <div class="section-header">
             <h2>👤 Create New User</h2>
-            <p>Add users to your organization</p>
+            <p>Add new users to your organization</p>
           </div>
-
-          <div id="createMessage"></div>
-
           <form id="createUserForm">
             <div class="form-group">
-              <label for="newUsername">Username</label>
-              <input
-                type="text"
-                id="newUsername"
-                name="username"
-                required
-                minlength="3"
-                maxlength="50"
-                placeholder="Enter username"
-              />
+              <label for="username">Username</label>
+              <input type="text" id="username" required placeholder="Enter username">
             </div>
-
             <div class="form-group">
-              <label for="newPassword">Password</label>
-              <input
-                type="password"
-                id="newPassword"
-                name="password"
-                required
-                minlength="6"
-                maxlength="100"
-                placeholder="Enter password"
-              />
+              <label for="password">Password</label>
+              <input type="password" id="password" required placeholder="Enter password">
             </div>
-
-                        <div class="form-group">
-              <label>User Role</label>
-              <div style="text-align: center; padding: 1rem; background: #e8f5e8; border: 2px solid #28a745; border-radius: 10px; color: #155724;">
-                <div style="font-size: 1.2rem; margin-bottom: 0.5rem">👤</div>
-                <strong>Regular User</strong>
-                <div style="font-size: 0.9rem; margin-top: 0.5rem; color: #666;">
-                  <em>Admins can only create regular users for security reasons</em>
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" class="create-btn" id="createBtn">
-              Create User
-            </button>
+            <button type="submit" class="create-btn">Create User</button>
           </form>
-
-          <div class="loading" id="createLoading">
-            <div class="spinner"></div>
-            <p>Creating user...</p>
-          </div>
         </div>
 
-        <!-- User List Section -->
+        <!-- Users List Section -->
         <div class="user-list-container">
           <div class="section-header">
-            <h2>📋 Regular Users</h2>
-            <p>Manage regular users in your organization</p>
+            <h2>👥 Organization Users</h2>
+            <p>Manage existing users in your organization</p>
           </div>
-
-          <div id="listMessage"></div>
-
-          <button class="refresh-btn" onclick="loadUsers()">
-            🔄 Refresh User List
-          </button>
-
-          <div class="user-list" id="userList">
-            <div class="empty-state">
-              <div class="icon">👥</div>
-              <p>Loading users...</p>
-            </div>
-          </div>
-
-          <div class="loading" id="listLoading">
-            <div class="spinner"></div>
-            <p>Loading users...</p>
-          </div>
+          <div class="users-list" id="usersList"><div class="loading">Loading users...</div></div>
         </div>
-      </div>
-
-      <!-- Navigation -->
-      <div class="navigation">
-        <a href="/admin-upload" class="nav-btn">📁 File Upload</a>
-        <a href="/dashboard" class="nav-btn">← Back to Dashboard</a>
-        <a href="/" class="nav-btn">🏠 Home</a>
       </div>
     </div>
 
     <script>
-      // Check if user is logged in and is admin
-      document.addEventListener("DOMContentLoaded", function () {
-        checkAuth();
-        loadUsers();
-      });
-
-      function checkAuth() {
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-        
-        if (!user.id || user.role !== "admin") {
-          showMessage("Access denied. Admin privileges required.", "error", "createMessage");
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 2000);
-          return;
-        }
-
-        // Display user info
-        document.getElementById("username").textContent = `👤 ${user.username}`;
-        document.getElementById("organization").textContent = `🏢 ${user.organization_name || "Unknown Organization"}`;
-      }
-
-      // Create User Form Handler
-      document.getElementById("createUserForm").addEventListener("submit", async function (e) {
-        e.preventDefault();
-
-        const username = document.getElementById("newUsername").value;
-        const password = document.getElementById("newPassword").value;
-        const role = "user"; // Fixed role - admins can only create regular users
-
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-        
-        if (!user.organization_id) {
-          showMessage("User session expired. Please login again.", "error", "createMessage");
-          return;
-        }
-
-        // Show loading state
-        const createBtn = document.getElementById("createBtn");
-        const createLoading = document.getElementById("createLoading");
-        createBtn.disabled = true;
-        createLoading.style.display = "block";
-
-        try {
-          const response = await fetch("/admin/create-user", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              username: username,
-              password: password,
-              role: role,
-              organization_id: user.organization_id,
-            }),
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            showMessage(
-              `✅ User created successfully! Username: ${data.username}`,
-              "success",
-              "createMessage"
-            );
-            
-            // Reset form
-            document.getElementById("createUserForm").reset();
-            
-            // Refresh user list
-            loadUsers();
-            
-            // Auto-hide success message
-            setTimeout(() => {
-              document.getElementById("createMessage").style.display = "none";
-            }, 3000);
-          } else {
-            showMessage(data.detail || "Failed to create user", "error", "createMessage");
-          }
-        } catch (error) {
-          console.error("Create user error:", error);
-          showMessage("An error occurred while creating user", "error", "createMessage");
-        } finally {
-          // Hide loading state
-          createBtn.disabled = false;
-          createLoading.style.display = "none";
-        }
-      });
-
-      // Load Users Function
-      async function loadUsers() {
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-        
-        if (!user.organization_id) {
-          showMessage("User session expired. Please login again.", "error", "listMessage");
-          return;
-        }
-
-        const listLoading = document.getElementById("listLoading");
-        const userList = document.getElementById("userList");
-        
-        listLoading.style.display = "block";
-        userList.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Loading...</p></div>';
-
-        try {
-          const response = await fetch(`/admin/organization-users/${user.organization_id}`);
-          
-          if (response.ok) {
-            const users = await response.json();
-            // Filter to show only regular users (not admins)
-            const regularUsers = users.filter(u => u.role === "user");
-            displayUsers(regularUsers);
-          } else {
-            const errorData = await response.json();
-            showMessage(errorData.detail || "Failed to load users", "error", "listMessage");
-            userList.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Failed to load users</p></div>';
-          }
-        } catch (error) {
-          console.error("Load users error:", error);
-          showMessage("An error occurred while loading users", "error", "listMessage");
-          userList.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Error loading users</p></div>';
-        } finally {
-          listLoading.style.display = "none";
-        }
-      }
-
-      // Display Users Function
-      function displayUsers(users) {
-        const userList = document.getElementById("userList");
-        
-        if (!users || users.length === 0) {
-          userList.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No users found</p></div>';
-          return;
-        }
-
-        userList.innerHTML = users.map(user => `
-          <div class="user-item">
-            <div class="user-info">
-              <div class="user-name">${user.username}</div>
-              <span class="user-role ${user.role}">${user.role}</span>
-            </div>
-            <button 
-              class="delete-btn" 
-              onclick="deleteUser('${user.id}', '${user.username}')"
-              ${user.id === JSON.parse(sessionStorage.getItem("user") || "{}").id ? 'disabled' : ''}
-            >
-              🗑️ Delete
-            </button>
-          </div>
-        `).join('');
-      }
-
-      // Delete User Function
-      async function deleteUser(userId, username) {
-        if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
-          return;
-        }
-
-        try {
-          const response = await fetch(`/admin/delete-user/${userId}`, {
-            method: "DELETE",
-          });
-
-          if (response.ok) {
-            showMessage(`✅ User "${username}" deleted successfully`, "success", "listMessage");
-            loadUsers(); // Refresh the list
-          } else {
-            const errorData = await response.json();
-            showMessage(errorData.detail || "Failed to delete user", "error", "listMessage");
-          }
-        } catch (error) {
-          console.error("Delete user error:", error);
-          showMessage("An error occurred while deleting user", "error", "listMessage");
-        }
-      }
-
-      // Utility Functions
-      function showMessage(message, type, elementId) {
-        const messageDiv = document.getElementById(elementId);
-        messageDiv.textContent = message;
-        messageDiv.className = `message ${type}`;
-        messageDiv.style.display = "block";
-      }
-
-      function logout() {
-        sessionStorage.removeItem("user");
-        window.location.href = "/login";
-      }
+      let currentUser=null;
+      document.addEventListener('DOMContentLoaded',()=>{loadUserInfo();loadUsers();setupForm();});
+      function loadUserInfo(){const userStr=sessionStorage.getItem("user");if(userStr){try{currentUser=JSON.parse(userStr);if(currentUser.role!=="admin"){window.location.href="/dashboard";return;}document.getElementById("adminUsername").textContent=currentUser.username||"N/A";document.getElementById("adminOrganization").textContent=currentUser.organization_name||"N/A";}catch(e){console.error("Error parsing user",e);showMessage("Error loading user information.","error");}}else{showMessage("No user info. Please log in again.","error");setTimeout(()=>{window.location.href="/login";},2000);}}
+      function setupForm(){document.getElementById('createUserForm').addEventListener('submit',handleCreateUser);}
+      async function handleCreateUser(e){e.preventDefault();const username=document.getElementById('username').value;const password=document.getElementById('password').value;if(!username||!password){showMessage('Please fill in all fields','error');return;}const btn=document.querySelector('.create-btn');btn.disabled=true;btn.textContent='Creating...';try{const response=await fetch('/admin/create-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password,role:"user",organization_id:currentUser.organization_id})});if(response.ok){showMessage('User created successfully!','success');document.getElementById('createUserForm').reset();loadUsers();}else{const error=await response.json();throw new Error(error.detail||'Failed to create user');}}catch(err){console.error(err);showMessage(`Failed: ${err.message}`,'error');}finally{btn.disabled=false;btn.textContent='Create User';}}
+      async function loadUsers(){try{const response=await fetch(`/admin/organization-users/${currentUser.organization_id}`);if(response.ok){const users=await response.json();const regularUsers=users.filter(u=>u.role==="user");displayUsers(regularUsers);}else throw new Error('Failed to load users');}catch(err){console.error(err);document.getElementById('usersList').innerHTML='<div class="no-users">Error loading users</div>';}}
+      function displayUsers(users){const wrap=document.getElementById('usersList');if(users.length===0){wrap.innerHTML='<div class="no-users">No users found</div>';return;}wrap.innerHTML=users.map(u=>`<div class="user-item"><div class="user-name">${u.username}</div><div class="user-details"><span>ID: ${u.id}</span><span>Created: ${new Date(u.created_at).toLocaleDateString()}</span></div><div class="user-actions"><button onclick="deleteUser('${u.id}','${u.username}')" class="btn btn-danger">Delete</button></div></div>`).join('');}
+      async function deleteUser(id,name){if(!confirm(`Delete user "${name}"?`))return;try{const res=await fetch(`/admin/delete-user/${id}`,{method:'DELETE'});if(res.ok){showMessage(`User "${name}" deleted!`,'success');loadUsers();}else{const e=await res.json();throw new Error(e.detail||'Delete failed');}}catch(err){console.error(err);showMessage(`Delete failed: ${err.message}`,'error');}}
+      function showMessage(msg,type){const div=document.getElementById('message');div.textContent=msg;div.className=`message ${type}`;div.style.display='block';if(type==='success'){setTimeout(()=>{div.style.display='none';},3000);}}
+      function logout(){sessionStorage.removeItem("user");window.location.href="/";}
     </script>
   </body>
 </html>

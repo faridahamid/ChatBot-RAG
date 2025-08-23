@@ -212,7 +212,7 @@ async def stt(file: UploadFile = File(...), translate: Optional[bool] = False):
             data,
             language=None,
             task=task,
-            vad_filter=True,
+            vad_filter=False,
             beam_size=5
         )
         text_out = "".join(seg.text for seg in segments).strip()
@@ -820,7 +820,91 @@ def get_feedback_stats(org_id: uuid.UUID, user_id: uuid.UUID = Query(...), db: S
         "rating_distribution": {str(rating): count for rating, count in rating_distribution}
     })
 
+# === List ALL orgs (active + inactive) so the dashboard can show both ===
+@app.get("/admin/super-admin/organizations/all", response_class=JSONResponse)
+def sa_list_orgs_all(db: Session = Depends(get_db)):
+    orgs = db.query(Organization).order_by(Organization.name).all()
+    out = []
+    for org in orgs:
+        admin_count = db.query(User).filter(
+            User.organization_id == org.id, User.role == "admin", User.is_active == True
+        ).count()
+        user_count = db.query(User).filter(
+            User.organization_id == org.id, User.role == "user", User.is_active == True
+        ).count()
+        out.append({
+            "id": str(org.id),
+            "name": org.name,
+            "description": org.description,
+            "is_active": bool(org.is_active),
+            "admin_count": admin_count,
+            "user_count": user_count,
+        })
+    return JSONResponse(out)
 
+
+# === RESTORE an org AND all of its admins/users ===
+@app.post("/admin/super-admin/organizations/{org_id}/restore", response_class=JSONResponse)
+def sa_restore_org(org_id: uuid.UUID, db: Session = Depends(get_db)):
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    # Reactivate org
+    org.is_active = True
+
+    # Reactivate all members (both roles) belonging to this org
+    # NOTE: synchronize_session=False is safe for bulk update here
+    reactivated_total = (
+        db.query(User)
+        .filter(User.organization_id == org_id, User.is_active == False)
+        .update({User.is_active: True}, synchronize_session=False)
+    )
+
+    db.commit()
+    db.refresh(org)
+
+    # Counts after restore (active members only)
+    admin_count = db.query(User).filter(
+        User.organization_id == org_id, User.role == "admin", User.is_active == True
+    ).count()
+    user_count = db.query(User).filter(
+        User.organization_id == org_id, User.role == "user", User.is_active == True
+    ).count()
+
+    return JSONResponse({
+        "message": "Organization restored",
+        "id": str(org.id),
+        "reactivated_members": int(reactivated_total),
+        "admin_count": admin_count,
+        "user_count": user_count,
+    })
+
+
+# === (Optional) SOFT-DELETE an org AND deactivate all members (symmetry) ===
+@app.delete("/admin/super-admin/organizations/{org_id}", response_class=JSONResponse)
+def sa_soft_delete_org(org_id: uuid.UUID, db: Session = Depends(get_db)):
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org.is_active = False
+
+    deactivated_total = (
+        db.query(User)
+        .filter(User.organization_id == org_id, User.is_active == True)
+        .update({User.is_active: False}, synchronize_session=False)
+    )
+
+    db.commit()
+    db.refresh(org)
+
+    return JSONResponse({
+      "message": "Organization deactivated",
+      "id": str(org.id),
+      "deactivated_members": int(deactivated_total)
+    })
+    
 @app.get("/health")
 def health_check():
     return {"status": "ok", "message": "RAG backend is running"}

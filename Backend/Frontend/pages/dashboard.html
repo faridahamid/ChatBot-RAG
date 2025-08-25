@@ -197,6 +197,164 @@
         min-height: 100vh;
       }
 
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+      .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+      }
+      .modal {
+        background: rgba(24, 16, 37, 0.95);
+        border-radius: 15px;
+        padding: 2rem;
+        width: 90%;
+        max-width: 500px;
+        border: 1px solid rgba(177, 140, 255, 0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        transform: translateY(-20px);
+        transition: transform 0.3s ease;
+      }
+      .modal-overlay.active .modal {
+        transform: translateY(0);
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 1rem;
+      }
+      .modal-title {
+        color: #B18CFF;
+        font-size: 1.5rem;
+        margin: 0;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        color: #c9c4d6;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+      }
+      .modal-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+      .form-group label {
+        display: block;
+        color: #B18CFF;
+        font-weight: 600;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+      }
+      .form-group input:focus {
+        outline: none;
+        border-color: #B18CFF;
+        box-shadow: 0 0 0 2px rgba(177, 140, 255, 0.2);
+      }
+      .password-requirements {
+        /* margin-top: 1rem; */
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .password-requirements h4 {
+        color: #B18CFF;
+        font-size: 0.9rem;
+        /* margin: 0 0 0.5rem 0; */
+        font-weight: 600;
+      }
+      .requirements-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .requirement {
+        color: #f37e7e;
+        font-size: 0.85rem;
+        /* margin-bottom: 0.25rem; */
+        transition: color 0.3s ease;
+      }
+      .requirement.valid {
+        color: #47d27e;
+      }
+      .error-message {
+        color: #f37e7e;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 4px;
+        border: 1px solid rgba(220, 53, 69, 0.2);
+      }
+      .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        /* margin-top: 2rem; */
+      }
+      .modal-btn {
+        /* padding: 0.75rem 1.5rem; */
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+      }
+      .modal-btn.secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #c9c4d6;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .modal-btn.secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+      .modal-btn.primary {
+        background: linear-gradient(135deg, #8a2be2, #5b19a6);
+        color: white;
+      }
+      .modal-btn.primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(138, 43, 226, 0.4);
+      }
+      .modal-btn.primary:disabled {
+        background: rgba(255, 255, 255, 0.1);
+        color: #666;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
       /* Basic navbar shell (assumes /css/dashboard.css has .navbar/.nav-container/.logo-wrapper styling) */
       .navbar {
         background: rgba(24, 16, 37, 0.7);
@@ -318,19 +476,33 @@
         <form class="modal-form" id="changePasswordForm">
           <div class="form-group">
             <label for="currentPassword">Current Password</label>
-            <input type="password" id="currentPassword" name="currentPassword" required placeholder="Enter current password">
+            <input type="password" id="currentPassword" name="currentPassword" required placeholder="Enter current password" oninput="validatePassword()">
           </div>
           <div class="form-group">
             <label for="newPassword">New Password</label>
-            <input type="password" id="newPassword" name="newPassword" required placeholder="Enter new password">
+            <input type="password" id="newPassword" name="newPassword" required placeholder="Enter new password" oninput="validatePassword()">
+            
+            <!-- Password Requirements -->
+            <div class="password-requirements">
+              <h4>Password Requirements:</h4>
+              <ul class="requirements-list">
+                <li id="req-length" class="requirement">✗ Minimum 8 characters</li>
+                <li id="req-uppercase" class="requirement">✗ At least one uppercase letter</li>
+                <li id="req-lowercase" class="requirement">✗ At least one lowercase letter</li>
+                <li id="req-number" class="requirement">✗ At least one number</li>
+                <li id="req-special" class="requirement">✗ At least one special character</li>
+              </ul>
+            </div>
           </div>
           <div class="form-group">
             <label for="confirmPassword">Confirm New Password</label>
-            <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm new password">
+            <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm new password" oninput="validatePassword()">
+            <div id="password-match-error" class="error-message" style="display: none;">Passwords do not match</div>
           </div>
+          <div id="password-error" class="error-message" style="display: none;"></div>
           <div class="modal-actions">
             <button type="button" class="modal-btn secondary" onclick="closeChangePasswordModal()">Cancel</button>
-            <button type="submit" class="modal-btn primary">Change Password</button>
+            <button type="submit" class="modal-btn primary" id="changePasswordBtn" disabled>Change Password</button>
           </div>
         </form>
       </div>
@@ -596,13 +768,14 @@
           const data = await response.json();
           loadingDiv.remove();
 
-          if (response.ok) {
+          if (response.ok && data.answer) {
+            addMessage(data.answer, "assistant");
             if (currentChatId) {
               await loadChat(currentChatId);
             } else {
               loadChatHistory();
             }
-          } else {
+          } else if (!response.ok) {
             addMessage(`Error: ${data.detail || "Failed to get response"}`, "assistant");
           }
         } catch (error) {
@@ -812,15 +985,84 @@
         }
       }
 
+      // Password validation function
+      function validatePassword() {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const passwordError = document.getElementById('password-error');
+        const passwordMatchError = document.getElementById('password-match-error');
+        
+        // Password requirements
+        const requirements = {
+          length: newPassword.length >= 8,
+          uppercase: /[A-Z]/.test(newPassword),
+          lowercase: /[a-z]/.test(newPassword),
+          number: /\d/.test(newPassword),
+          special: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+        };
+        
+        // Update visual indicators
+        document.getElementById('req-length').className = requirements.length ? 'requirement valid' : 'requirement';
+        document.getElementById('req-length').innerHTML = requirements.length ? '✓ Minimum 8 characters' : '✗ Minimum 8 characters';
+        
+        document.getElementById('req-uppercase').className = requirements.uppercase ? 'requirement valid' : 'requirement';
+        document.getElementById('req-uppercase').innerHTML = requirements.uppercase ? '✓ At least one uppercase letter' : '✗ At least one uppercase letter';
+        
+        document.getElementById('req-lowercase').className = requirements.lowercase ? 'requirement valid' : 'requirement';
+        document.getElementById('req-lowercase').innerHTML = requirements.lowercase ? '✓ At least one lowercase letter' : '✗ At least one lowercase letter';
+        
+        document.getElementById('req-number').className = requirements.number ? 'requirement valid' : 'requirement';
+        document.getElementById('req-number').innerHTML = requirements.number ? '✓ At least one number' : '✗ At least one number';
+        
+        document.getElementById('req-special').className = requirements.special ? 'requirement valid' : 'requirement';
+        document.getElementById('req-special').innerHTML = requirements.special ? '✓ At least one special character' : '✗ At least one special character';
+        
+        // Check if all requirements are met
+        const allRequirementsMet = Object.values(requirements).every(req => req);
+        
+        // Check password confirmation
+        const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
+        
+        // Show/hide password match error
+        if (confirmPassword.length > 0 && !passwordsMatch) {
+          passwordMatchError.style.display = 'block';
+        } else {
+          passwordMatchError.style.display = 'none';
+        }
+        
+        // Enable/disable submit button
+        const canSubmit = allRequirementsMet && passwordsMatch && document.getElementById('currentPassword').value.length > 0;
+        changePasswordBtn.disabled = !canSubmit;
+        
+        // Clear any previous error messages
+        passwordError.style.display = 'none';
+        
+        return { allRequirementsMet, passwordsMatch, canSubmit };
+      }
+
       // Password modal + logout
       function openChangePasswordModal() {
         document.getElementById('changePasswordModal').classList.add('active');
         document.getElementById('currentPassword').focus();
+        // Reset validation state
+        validatePassword();
       }
       function closeChangePasswordModal() {
         document.getElementById('changePasswordModal').classList.remove('active');
         document.getElementById('changePasswordForm').reset();
+        // Reset validation indicators
+        const requirements = ['req-length', 'req-uppercase', 'req-lowercase', 'req-number', 'req-special'];
+        requirements.forEach(req => {
+          const element = document.getElementById(req);
+          element.className = 'requirement';
+          element.innerHTML = element.innerHTML.replace('✓', '✗');
+        });
+        document.getElementById('password-match-error').style.display = 'none';
+        document.getElementById('password-error').style.display = 'none';
+        document.getElementById('changePasswordBtn').disabled = true;
       }
+      
       function logout() {
         sessionStorage.removeItem("user");
         setTimeout(() => { window.location.href = "/"; }, 1000);
@@ -832,13 +1074,35 @@
         if (changePasswordForm) {
           changePasswordForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            // Validate before submission
+            const validation = validatePassword();
+            if (!validation.canSubmit) {
+              const passwordError = document.getElementById('password-error');
+              let errorMessage = 'Please fix the following issues:';
+              const newPassword = document.getElementById('newPassword').value;
+              const confirmPassword = document.getElementById('confirmPassword').value;
+              
+              if (newPassword.length < 8) errorMessage += '\n• Password must be at least 8 characters';
+              if (!/[A-Z]/.test(newPassword)) errorMessage += '\n• Password must contain an uppercase letter';
+              if (!/[a-z]/.test(newPassword)) errorMessage += '\n• Password must contain a lowercase letter';
+              if (!/\d/.test(newPassword)) errorMessage += '\n• Password must contain a number';
+              if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) errorMessage += '\n• Password must contain a special character';
+              if (newPassword !== confirmPassword) errorMessage += '\n• Passwords do not match';
+              if (!document.getElementById('currentPassword').value) errorMessage += '\n• Current password is required';
+              
+              passwordError.textContent = errorMessage;
+              passwordError.style.display = 'block';
+              return;
+            }
+            
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            if (newPassword !== confirmPassword) { showMessage("New passwords do not match.", "error"); return; }
-            if (newPassword.length < 6) { showMessage("New password must be at least 6 characters long.", "error"); return; }
-            if (!user || !user.id) { showMessage("User session expired. Please log in again.", "error"); return; }
+            
+            if (!user || !user.id) { 
+              showMessage("User session expired. Please log in again.", "error"); 
+              return; 
+            }
 
             try {
               const formData = new FormData();
@@ -848,15 +1112,24 @@
 
               const response = await fetch('/change-password', { method: 'POST', body: formData });
               if (response.ok) {
-                closeChangePasswordModal();
-                showMessage("Password changed successfully!", "success");
-              } else {
+                   closeChangePasswordModal();
+                   showMessage("Password changed successfully! Redirecting…", "success");
+                   setTimeout(() => { window.location.href = "/"; }, 1500);
+              }
+
+
+              
+              else {
                 const error = await response.json();
-                showMessage(`Error: ${error.detail || 'Failed to change password'}`, "error");
+                const passwordError = document.getElementById('password-error');
+                passwordError.textContent = error.detail || 'Failed to change password';
+                passwordError.style.display = 'block';
               }
             } catch (error) {
               console.error('Change password error:', error);
-              showMessage("Error changing password. Please try again.", "error");
+              const passwordError = document.getElementById('password-error');
+              passwordError.textContent = 'Error changing password. Please try again.';
+              passwordError.style.display = 'block';
             }
           });
         }
@@ -867,6 +1140,13 @@
             if (e.target === this) closeChangePasswordModal();
           });
         }
+        
+        // Initialize validation state
+        setTimeout(() => {
+          if (document.getElementById('changePasswordBtn')) {
+            document.getElementById('changePasswordBtn').disabled = true;
+          }
+        }, 100);
       });
 
       document.addEventListener("DOMContentLoaded", loadUserInfo);

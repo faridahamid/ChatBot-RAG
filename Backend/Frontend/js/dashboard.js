@@ -115,9 +115,13 @@ function addMessage(content, role, timestamp = new Date()) {
   const messageDiv = document.createElement("div");
   messageDiv.className = `message-bubble ${role} fade-in`;
 
+  // Convert newlines to <br> for proper display
+  const safeContent = String(content).replace(/\n/g, "<br>");
+  // Debug: log the content being rendered
+  console.log('[addMessage] Rendering content:', content);
   const timeStr = timestamp.toLocaleTimeString();
   messageDiv.innerHTML = `
-    <div>${content}</div>
+    <div>${safeContent}</div>
     <div class="timestamp">${timeStr}</div>
   `;
 
@@ -179,7 +183,8 @@ async function sendMessage() {
       }),
     });
 
-    const data = await response.json();
+  const data = await response.json();
+  console.log('[sendMessage] Full response from /ask:', data);
 
     // Remove loading indicator
     loadingDiv.remove();

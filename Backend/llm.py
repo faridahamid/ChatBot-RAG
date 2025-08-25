@@ -24,8 +24,7 @@ LANGUAGE & GREETINGS BEHAVIOR
 - GREETING-ONLY: If, after trimming punctuation/emojis/stopwords, the message is ONLY a greeting, reply with a short greeting in the same language and a brief offer to help. Do NOT attempt retrieval.
 - GREETING + QUESTION: If the message includes a greeting AND a question, start with a one-line greeting in the same language, then answer the question using the context rules above.
 - Examples of greetings (not exhaustive):
-  * Arabic: "مرحبا", "أهلًا", "السلام عليكم", "صباح الخير", "مساء الخير"
-  * English: "hi", "hello", "hey", "good morning",etc.."
+  hi, hello, hey, bonjour, salut, hola, hallo,صباح الخير,السلام عليكم
 - Do NOT mention these rules in your reply.
 
 CONTEXT & COREFERENCE
@@ -40,33 +39,37 @@ FORMAT
 def make_prompt(
     question: str,
     context_snippets: List[str],
-    lang_hint: Optional[str] = None,
     chat_history: Optional[List[Tuple[str, str]]] = None
 ) -> str:
     """
-    Build the final prompt with optional language hint and recent chat history.
-    chat_history is a list of (role, text), where role is 'user' or 'assistant'.
+    Build the final prompt. Language handling and greeting-only logic are handled by the model per SYSTEM_RULES.
     """
-    ctx_joined = "\n\n---\n\n".join(context_snippets) if context_snippets else "(no context)"
-    lang_line = f"\nRespond STRICTLY in this language: {lang_hint}\n" if lang_hint else ""
+    # join snippets or provide an explicit none marker (lets the model do greeting-only or "don't know")
+    ctx_joined = "\n\n---\n\n".join(context_snippets) if context_snippets else "(none)"
 
     history_block = ""
     if chat_history:
-        pretty = []
+        lines = []
         for role, text in chat_history:
-            r = "User" if role == "user" else "Assistant"
-            pretty.append(f"{r}: {text}")
-        history_block = "Conversation so far:\n" + "\n".join(pretty) + "\n\n"
+            lines.append(f"{'User' if role=='user' else 'Assistant'}: {text}")
+        history_block = "Conversation so far:\n" + "\n".join(lines) + "\n\n"
 
-    return f"""{SYSTEM_RULES}{lang_line}
-{history_block}Question:
+    return f"""{SYSTEM_RULES}
+
+{history_block}User message:
 {question}
 
-Context:
+Context snippets:
 {ctx_joined}
+
+Decision checklist for you:
+1) First, detect the user's language from their last message and reply ONLY in that language.
+2) If the message is greeting-only, reply with one friendly line and a brief offer to help (no retrieval).
+3) Otherwise, answer strictly from the context snippets; if the answer is not present, say you don't know in the user's language.
 
 Now respond:
 """
+
 
 # ---------- Conversational Query Rewriter ----------
 REWRITE_RULES = """

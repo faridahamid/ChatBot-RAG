@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import List, Optional, Tuple
 from datetime import datetime, timedelta
-
+import re
 
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -36,6 +36,19 @@ app.add_middleware(
 )
 
 app.include_router(admin_router)
+# Lightweight change-password redirector for email links
+@app.get("/change-password", response_class=HTMLResponse)
+def change_password_page():
+    """
+    Serve the standalone Change Password page.
+    The page reads ?user_id=... and posts to /change-password.
+    """
+    try:
+        with open("Frontend/pages/change_password.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse("<h1>Change Password page not found</h1>", status_code=404)
+
 
 # ---------- STT (Whisper) ----------
 WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small")
@@ -47,6 +60,21 @@ try:
 except Exception as e:
     raise RuntimeError(f"Failed to load Whisper model: {e}")
 
+
+
+
+# def translate_text_simple(text: str, lang_code: str) -> str:
+#     if not lang_code or lang_code.lower().startswith("en"):
+#         return text
+#     try:
+#         model = get_gemini()
+#         rsp = model.generate_content(
+#             f"Translate the following text into the language with ISO 639-1 code '{lang_code}'. "
+#             f"Return only the translation, no quotes or commentary.\n\n{text}"
+#         )
+#         return (getattr(rsp, "text", "") or "").strip() or text
+#     except Exception:
+#         return text
 # ---------- FRONTEND ROUTES ----------
 @app.get("/", response_class=HTMLResponse)
 def welcome_page():
@@ -128,13 +156,7 @@ def admin_dashboard_page():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Admin dashboard page not found</h1>", status_code=404)
 
-@app.get("/change-password", response_class=HTMLResponse)
-def change_password_page():
-    try:
-        with open("Frontend/pages/change_password.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Password change page not found</h1>", status_code=404)
+from uuid import UUID
 
 @app.post("/change-password")
 def change_password(
@@ -145,32 +167,47 @@ def change_password(
 ):
     if not current_password or not new_password:
         raise HTTPException(status_code=400, detail="Both current and new password are required")
-    
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long")
-    
+
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
-    
-    user = db.query(User).filter(User.id == user_id).first()
+
+    # Validate UUID
+    try:
+        user_uuid = UUID(user_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user id")
+
+    # Server-side password strength (mirror client rules)
+    # min 8, at least one uppercase, lowercase, digit, special
+    if len(new_password) < 8 \
+       or not re.search(r"[A-Z]", new_password) \
+       or not re.search(r"[a-z]", new_password) \
+       or not re.search(r"\d", new_password) \
+       or not re.search(r"[!@#$%^&*(),.?\":{}|<>]", new_password):
+        raise HTTPException(status_code=400, detail="Password does not meet complexity requirements")
+
+    # Lookup user
+    user = db.query(User).filter(User.id == user_uuid).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Verify current password
-    from admin_auth import verify_password
+    from admin_auth import verify_password, hash_password
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    
-    # Hash new password
-    from admin_auth import hash_password
-    new_password_hash = hash_password(new_password)
-    
-    # Update password
-    user.password_hash = new_password_hash
-    db.commit()
-    
-    return {"message": "Password changed successfully"}
 
+    # Update password
+    user.password_hash = hash_password(new_password)
+    try:
+        if hasattr(user, "must_change_password"):
+            user.must_change_password = False
+    except Exception:
+        pass
+
+    db.commit()
+
+    # Frontend expects a redirect instruction; welcome page is "/"
+    return JSONResponse({"message": "Password changed successfully", "redirect": "/"})
 # ---------- STATIC ----------
 @app.get("/css/{filename}")
 def get_css(filename: str):
@@ -318,17 +355,16 @@ def update_chat_title(chat_id: str, payload: dict, db: Session = Depends(get_db)
 # ---------- RAG API with MEMORY ----------
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, db: Session = Depends(get_db)):
-    # Validate user and org membership
+    # Validate user & org
     user = db.query(User).filter(User.id == payload.user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if str(user.organization_id) != str(payload.org_id):
         raise HTTPException(status_code=403, detail="User does not belong to this organization")
-    role = (user.role or "").lower()
-    if role not in ("user", "admin"):
+    if (user.role or "").lower() not in ("user", "admin"):
         return AskResponse(answer="Your role is not permitted to use the chat.")
 
-    # Choose the chat (reuse latest if none provided)
+    # Get (or create) chat
     if payload.chat_id:
         chat = db.query(Chat).filter(Chat.id == payload.chat_id, Chat.user_id == payload.user_id).first()
         if not chat:
@@ -345,14 +381,13 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
             db.add(chat)
             db.flush()
 
-    # Language detect
+    # Detect user language (for the answer language only)
     try:
-        qlang = detect(payload.question)
+        qlang = (detect(payload.question) or "en").lower()
     except Exception:
         qlang = "en"
-    lang_label = "Arabic" if qlang == "ar" else "English"
 
-    # --------- Recent chat history (last 8 messages) ---------
+    # Recent history
     history_rows = (
         db.query(ChatMessage)
         .filter(ChatMessage.chat_id == chat.id)
@@ -362,12 +397,13 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     )
     history: List[Tuple[str, str]] = [(m.role, m.content) for m in reversed(history_rows)]
 
-    # --------- Rewrite to standalone query for retrieval ---------
-    # Provide short recent history + current question to the rewriter
+    # Rewrite to standalone query (preserves language)
     history_for_rewrite = history[-7:]
-    standalone_query = rewrite_query_with_history(payload.question, history_for_rewrite + [("user", payload.question)])
+    standalone_query = rewrite_query_with_history(
+        payload.question, history_for_rewrite + [("user", payload.question)]
+    )
 
-    # --------- Embed (standalone) & retrieve ---------
+    # Embed & retrieve (multilingual model—no translation fallback needed)
     qvec = embed_query(standalone_query)
     qvec_np = np.array(qvec, dtype=np.float32)
 
@@ -391,51 +427,25 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     def row2score(r):
         return max(0.0, 1.0 - float(r.distance))
 
-    snippets: List[str] = [r.content for r in rows]
-    scores = [row2score(r) for r in rows]
-
-    # Fallback: translate to English and retry once if weak/empty
-    refusal_threshold = float(os.getenv("RAG_REFUSAL_THRESHOLD", "0.40"))
-    need_fallback = (not rows) or (scores and scores[0] < refusal_threshold)
-    if need_fallback:
-        try:
-            model = get_gemini()
-            t = model.generate_content(
-                f"Translate to English (keep common technical terms as-is):\n\n{standalone_query}"
-            )
-            q_en = (getattr(t, "text", "") or "").strip()
-            if q_en:
-                qvec_en = np.array(embed_query(q_en), dtype=np.float32)
-                rows_en = db.execute(sql, {"q": qvec_en.tolist(), "org": str(payload.org_id)}).fetchall()
-                if rows_en:
-                    rows = rows_en
-                    snippets = [r.content for r in rows]
-                    scores = [row2score(r) for r in rows]
-        except Exception:
-            pass
+    snippets = [r.content for r in rows]
 
     if not rows:
-        msg = (
-            "لا أملك معلومات حول هذا الموضوع في قاعدة معرفة هذه المؤسسة."
-            if qlang == "ar"
-            else "I don't have information about that in this organization's knowledge base."
-        )
-        # persist the attempt
+        base_msg_en = "I don't have information about that in this organization's knowledge base."
+        msg = translate_text_simple(base_msg_en, qlang)
         try:
             db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
             db.add(ChatMessage(chat_id=chat.id, role="assistant", content=msg, citations=[]))
             db.commit()
         except Exception:
             db.rollback()
-        return AskResponse(answer=msg)
+        return AskResponse(answer=msg, sources=[])
 
-    # --------- Build prompt with memory (short history) ---------
+    # Build prompt & answer in user's language
     keep = int(os.getenv("RAG_LLM_SNIPPETS", "8"))
-    history_for_answer = history[-6:]  # keep it compact
+    history_for_answer = history[-6:]
     prompt = make_prompt(
-        question=payload.question,              # show the original wording
+        question=payload.question,
         context_snippets=snippets[:keep],
-        lang_hint=lang_label,
         chat_history=history_for_answer
     )
 
@@ -446,31 +456,32 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {e}")
 
-    # --------- Persist exchange ---------
+    # Persist exchange
     try:
         db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
-
         citations = [
-            {"chunk_id": str(r.chunk_id), "filename": r.filename, "score": max(0.0, 1.0 - float(r.distance))}
+            {"chunk_id": str(r.chunk_id), "filename": r.filename, "score": row2score(r)}
             for r in rows[:keep]
         ]
         db.add(ChatMessage(chat_id=chat.id, role="assistant", content=answer_text, citations=citations))
-
-        # Title on first turn or placeholder
         try:
             msg_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
             if (msg_count == 0) or (not chat.title) or (chat.title.strip().lower() == "new chat"):
                 chat.title = payload.question[:80]
         except Exception:
             pass
-
         db.commit()
     except Exception as e:
         db.rollback()
         print(f"Error persisting chat: {e}")
 
-    return AskResponse(answer=answer_text.strip())
-
+    # Collect unique filenames from the top sources
+    top_filenames = list({r.filename for r in rows[:keep] if r.filename})
+    print(f"[DEBUG] Sources for answer: {top_filenames}")
+    # Always append sources section, even if empty
+    sources_text = "\n\nSources:\n" + ("\n".join(top_filenames) if top_filenames else "None found")
+    answer_text_with_sources = answer_text + sources_text
+    return AskResponse(answer=answer_text_with_sources, sources=top_filenames)
 # ---------- Upload ----------
 @app.post("/upload", response_model=UploadResponse)
 def upload_document(
@@ -613,6 +624,18 @@ def _ensure_indexes():
                 END IF;
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns
+                    WHERE table_name='users' AND column_name='email'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN email TEXT;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='users' AND column_name='must_change_password'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
                     WHERE table_name='organizations' AND column_name='is_active'
                 ) THEN
                     ALTER TABLE organizations ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
@@ -646,7 +669,9 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
         username=payload.username,
         password_hash=password_hash,
         role=payload.role,
-        organization_id=payload.organization_id
+        organization_id=payload.organization_id,
+        email=payload.email,
+        must_change_password=False
     )
     db.add(user)
     db.commit()

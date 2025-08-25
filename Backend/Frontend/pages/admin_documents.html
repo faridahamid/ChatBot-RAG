@@ -132,7 +132,7 @@
             <div class="upload-icon">📁</div>
             <div class="upload-text">Drag and drop files here</div>
             <div class="upload-subtext">or click to browse files</div>
-            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt" multiple>
+            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt,.csv" multiple>
           </div>
           <button id="uploadBtn" class="upload-btn" onclick="uploadFiles()" disabled>Upload Files</button>
           <div class="file-list" id="fileList"></div>
@@ -265,7 +265,7 @@
       function handleFiles(files){
         selectedFiles=files.filter(f=>{
           const ext='.'+f.name.split('.').pop().toLowerCase();
-          return ['.pdf','.doc','.docx','.txt'].includes(ext);
+          return ['.pdf','.doc','.docx','.txt','.csv'].includes(ext);
         });
         const btn=document.getElementById('uploadBtn');
         btn.disabled=selectedFiles.length===0;

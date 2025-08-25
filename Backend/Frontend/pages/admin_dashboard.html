@@ -78,41 +78,73 @@
     .message.success{background:rgba(40,167,69,.2);color:#28a745;border:1px solid rgba(40,167,69,.3)}
     .message.error{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.3)}
 
-    /* Change Password Modal (same pattern as admin-chat) */
-    .modal-overlay{
-      position:fixed;inset:0;background:rgba(0,0,0,.5);
-      display:none;align-items:center;justify-content:center;z-index:1100;
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
     }
-    .modal-overlay.active{display:flex}
-    .modal{
-      width:min(520px,92vw);background:rgba(25,18,37,.95);
-      border:1px solid rgba(255,255,255,.12);border-radius:16px;
-      box-shadow:0 10px 30px rgba(0,0,0,.45);padding:1rem 1rem 1.25rem;
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
     }
-    .modal-header{
-      display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem
+    .modal {
+      background: rgba(24, 16, 37, 0.95);
+      border-radius: 15px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 500px;
+      border: 1px solid rgba(177, 140, 255, 0.3);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
     }
-    .modal-title{color:#E9E7F1;font-size:1.25rem;font-weight:700}
-    .modal-close{
-      background:transparent;border:none;color:#c9c4d6;font-size:1.75rem;cursor:pointer;line-height:1
+    .modal-overlay.active .modal { transform: translateY(0); }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 1rem;
     }
-    .modal-form{margin-top:.5rem}
-    .form-group{margin-bottom:1rem}
-    .form-group label{display:block;margin-bottom:.4rem;color:#B18CFF;font-weight:600}
-    .form-group input{
-      width:100%;padding:.75rem;border:1px solid rgba(255,255,255,.2);
-      border-radius:10px;background:rgba(255,255,255,.08);color:#E9E7F1;font-size:1rem
+    .modal-title { color: #B18CFF; font-size: 1.5rem; margin: 0; }
+    .modal-close {
+      background: none; border: none; color: #c9c4d6; font-size: 1.5rem; cursor: pointer; padding: 0;
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+      transition: all 0.3s ease;
     }
-    .form-group input::placeholder{color:#bfb7cc}
-    .form-group input:focus{outline:none;border-color:#B18CFF;box-shadow:0 0 0 2px rgba(177,140,255,.15)}
-    .modal-actions{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1rem}
-    .modal-btn{
-      border:none;padding:.7rem 1.1rem;border-radius:10px;cursor:pointer;font-weight:700
+    .modal-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; color: #B18CFF; font-weight: 600; }
+    .form-group input {
+      width: 100%; padding: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 1rem; transition: all 0.3s ease;
     }
-    .modal-btn.primary{background:linear-gradient(135deg,#8a2be2,#5b19a6);color:#fff}
-    .modal-btn.secondary{background:rgba(255,255,255,.1);color:#c9c4d6;border:1px solid rgba(255,255,255,.2)}
-    .modal-btn.primary:hover{transform:translateY(-1px)}
-    .modal-btn.secondary:hover{background:rgba(255,255,255,.15)}
+    .form-group input:focus { outline: none; border-color: #B18CFF; box-shadow: 0 0 0 2px rgba(177, 140, 255, 0.2); }
+
+    .password-requirements {
+      padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .password-requirements h4 { color: #B18CFF; font-size: 0.9rem; font-weight: 600; }
+    .requirements-list { list-style: none; padding: 0; margin: 0; }
+    .requirement { color: #f37e7e; font-size: 0.85rem; transition: color 0.3s ease; }
+    .requirement.valid { color: #47d27e; }
+    .error-message {
+      color: #f37e7e; font-size: 0.85rem; margin-top: 0.5rem; padding: 0.5rem;
+      background: rgba(220, 53, 69, 0.1); border-radius: 4px; border: 1px solid rgba(220, 53, 69, 0.2);
+    }
+
+    .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; }
+    .modal-btn { border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem; }
+    .modal-btn.secondary { background: rgba(255, 255, 255, 0.1); color: #c9c4d6; border: 1px solid rgba(255, 255, 255, 0.2); }
+    .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+    .modal-btn.primary { background: linear-gradient(135deg, #8a2be2, #5b19a6); color: white; }
+    .modal-btn.primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(138, 43, 226, 0.4); }
+    .modal-btn.primary:disabled { background: rgba(255, 255, 255, 0.1); color: #666; cursor: not-allowed; opacity: 0.6; }
 
     @media (max-width:720px){.nav-links{gap:1rem;font-size:.95rem}}
   </style>
@@ -126,7 +158,6 @@
         <div class="logo-text">RAG ChatBot</div>
       </div>
       <ul class="nav-links">
-        
         <li><a href="#" onclick="openChangePasswordModal()">Change Password</a></li>
         <li><a href="#" onclick="logout()">Logout</a></li>
       </ul>
@@ -183,7 +214,7 @@
     </div>
   </div>
 
-  <!-- Change Password Modal (same UX as admin-chat) -->
+  <!-- Change Password Modal -->
   <div class="modal-overlay" id="changePasswordModal">
     <div class="modal">
       <div class="modal-header">
@@ -193,19 +224,33 @@
       <form class="modal-form" id="changePasswordForm">
         <div class="form-group">
           <label for="currentPassword">Current Password</label>
-          <input type="password" id="currentPassword" name="currentPassword" required placeholder="Enter current password">
+          <input type="password" id="currentPassword" name="currentPassword" required placeholder="Enter current password" oninput="validatePassword()">
         </div>
         <div class="form-group">
           <label for="newPassword">New Password</label>
-          <input type="password" id="newPassword" name="newPassword" required placeholder="Enter new password">
+          <input type="password" id="newPassword" name="newPassword" required placeholder="Enter new password" oninput="validatePassword()">
+
+          <!-- Password Requirements -->
+          <div class="password-requirements">
+            <h4>Password Requirements:</h4>
+            <ul class="requirements-list">
+              <li id="req-length" class="requirement">✗ Minimum 8 characters</li>
+              <li id="req-uppercase" class="requirement">✗ At least one uppercase letter</li>
+              <li id="req-lowercase" class="requirement">✗ At least one lowercase letter</li>
+              <li id="req-number" class="requirement">✗ At least one number</li>
+              <li id="req-special" class="requirement">✗ At least one special character</li>
+            </ul>
+          </div>
         </div>
         <div class="form-group">
           <label for="confirmPassword">Confirm New Password</label>
-          <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm new password">
+          <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm new password" oninput="validatePassword()">
+          <div id="password-match-error" class="error-message" style="display: none;">Passwords do not match</div>
         </div>
+        <div id="password-error" class="error-message" style="display: none;"></div>
         <div class="modal-actions">
           <button type="button" class="modal-btn secondary" onclick="closeChangePasswordModal()">Cancel</button>
-          <button type="submit" class="modal-btn primary">Change Password</button>
+          <button type="submit" class="modal-btn primary" id="changePasswordBtn" disabled>Change Password</button>
         </div>
       </form>
     </div>
@@ -217,17 +262,19 @@
     document.addEventListener('DOMContentLoaded', function(){
       loadUserInfo();
 
-      // Wire the change-password form (same behavior as admin-chat)
+      // Submit handler with validation + redirect to welcome page on success
       const changePasswordForm = document.getElementById('changePasswordForm');
       changePasswordForm.addEventListener('submit', async function(e){
         e.preventDefault();
+
         const currentPassword = document.getElementById('currentPassword').value;
         const newPassword = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
+        const { canSubmit } = validatePassword();
 
-        if (newPassword !== confirmPassword) { showMessage("New passwords do not match.", "error"); return; }
+        if (!currentPassword) { showMessage("Please enter your current password.", "error"); return; }
+        if (!canSubmit) { showMessage("Please meet all password requirements and ensure both passwords match.", "error"); return; }
         if (!currentUser || !currentUser.id) { showMessage("Session expired. Please log in again.", "error"); return; }
-        if (newPassword.length < 6) { showMessage("New password must be at least 6 characters long.", "error"); return; }
 
         try{
           const fd = new FormData();
@@ -239,7 +286,10 @@
           const data = await res.json();
           if (res.ok){
             closeChangePasswordModal();
-            showMessage("Password changed successfully!", "success");
+            // Log out current session to avoid stale creds, then redirect home
+            sessionStorage.removeItem("user");
+            showMessage("Password changed successfully! Redirecting…", "success");
+            setTimeout(()=>{ window.location.href = "/"; }, 1500);
           } else {
             showMessage(data.detail || "Failed to change password", "error");
           }
@@ -287,6 +337,62 @@
       if (type === "success"){ setTimeout(()=> el.style.display="none", 3000); }
     }
 
+    // Password validation function (live)
+    function validatePassword() {
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const changePasswordBtn = document.getElementById('changePasswordBtn');
+      const passwordError = document.getElementById('password-error');
+      const passwordMatchError = document.getElementById('password-match-error');
+
+      // Password requirements
+      const requirements = {
+        length: newPassword.length >= 8,
+        uppercase: /[A-Z]/.test(newPassword),
+        lowercase: /[a-z]/.test(newPassword),
+        number: /\d/.test(newPassword),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+      };
+
+      // Update visual indicators
+      document.getElementById('req-length').className = requirements.length ? 'requirement valid' : 'requirement';
+      document.getElementById('req-length').innerHTML = requirements.length ? '✓ Minimum 8 characters' : '✗ Minimum 8 characters';
+
+      document.getElementById('req-uppercase').className = requirements.uppercase ? 'requirement valid' : 'requirement';
+      document.getElementById('req-uppercase').innerHTML = requirements.uppercase ? '✓ At least one uppercase letter' : '✗ At least one uppercase letter';
+
+      document.getElementById('req-lowercase').className = requirements.lowercase ? 'requirement valid' : 'requirement';
+      document.getElementById('req-lowercase').innerHTML = requirements.lowercase ? '✓ At least one lowercase letter' : '✗ At least one lowercase letter';
+
+      document.getElementById('req-number').className = requirements.number ? 'requirement valid' : 'requirement';
+      document.getElementById('req-number').innerHTML = requirements.number ? '✓ At least one number' : '✗ At least one number';
+
+      document.getElementById('req-special').className = requirements.special ? 'requirement valid' : 'requirement';
+      document.getElementById('req-special').innerHTML = requirements.special ? '✓ At least one special character' : '✗ At least one special character';
+
+      // Check if all requirements are met
+      const allRequirementsMet = Object.values(requirements).every(req => req);
+
+      // Check password confirmation
+      const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
+
+      // Show/hide password match error
+      if (confirmPassword.length > 0 && !passwordsMatch) {
+        passwordMatchError.style.display = 'block';
+      } else {
+        passwordMatchError.style.display = 'none';
+      }
+
+      // Enable/disable submit button
+      const canSubmit = allRequirementsMet && passwordsMatch && document.getElementById('currentPassword').value.length > 0;
+      changePasswordBtn.disabled = !canSubmit;
+
+      // Clear any previous error messages
+      passwordError.style.display = 'none';
+
+      return { allRequirementsMet, passwordsMatch, canSubmit };
+    }
+
     function openChangePasswordModal(){
       document.getElementById('changePasswordModal').classList.add('active');
       setTimeout(()=>document.getElementById('currentPassword').focus(), 50);
@@ -294,6 +400,19 @@
     function closeChangePasswordModal(){
       document.getElementById('changePasswordModal').classList.remove('active');
       document.getElementById('changePasswordForm').reset();
+      // Reset UI state
+      document.getElementById('changePasswordBtn').disabled = true;
+      document.getElementById('password-match-error').style.display = 'none';
+      document.getElementById('req-length').className = 'requirement';
+      document.getElementById('req-uppercase').className = 'requirement';
+      document.getElementById('req-lowercase').className = 'requirement';
+      document.getElementById('req-number').className = 'requirement';
+      document.getElementById('req-special').className = 'requirement';
+      document.getElementById('req-length').innerHTML = '✗ Minimum 8 characters';
+      document.getElementById('req-uppercase').innerHTML = '✗ At least one uppercase letter';
+      document.getElementById('req-lowercase').innerHTML = '✗ At least one lowercase letter';
+      document.getElementById('req-number').innerHTML = '✗ At least one number';
+      document.getElementById('req-special').innerHTML = '✗ At least one special character';
     }
 
     function logout(){

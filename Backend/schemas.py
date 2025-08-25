@@ -8,9 +8,10 @@ class OrgCreate(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
-    password: str
+    password: Optional[str] = None
     role: str = Field(pattern="^(super-admin|admin|user)$")
     organization_id: Optional[UUID] = None  # Optional for super-admin
+    email: Optional[str] = None
 
 class SuperAdminCreate(BaseModel):
     username: str
@@ -34,6 +35,7 @@ class UserResponse(BaseModel):
     organization_id: UUID
     organization_name: str
     created_at: str
+    email: Optional[str] = None
 
 
 class UploadResponse(BaseModel):
@@ -49,7 +51,7 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
-    
+    sources: list[str] = []
 
 class LoginRequest(BaseModel):
     username: str

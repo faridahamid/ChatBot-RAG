@@ -131,6 +131,8 @@ async function performLogin(username, password) {
       setTimeout(() => {
         if ((data.role ?? data.user?.role) === "super-admin") {
           window.location.href = "/super-admin";
+        } else if ((data.role ?? data.user?.role) === "admin") {
+          window.location.href = "/admin-dashboard";
         } else {
           window.location.href = "/dashboard";
         }
@@ -140,6 +142,23 @@ async function performLogin(username, password) {
       let errorMessage = "Login failed.";
 
       if (data.detail) {
+        if (typeof data.detail === "object" && data.detail.must_change_password) {
+          const userId = data.detail.user_id;
+          const role = data.detail.role;
+          // Persist forced change flag and send user to their dashboard
+          sessionStorage.setItem("forceChangePassword", JSON.stringify({ user_id: userId }));
+          showInfo("Password change required.");
+          setTimeout(() => {
+            if (role === "admin") {
+              window.location.href = "/admin-dashboard";
+            } else if (role === "super-admin") {
+              window.location.href = "/super-admin";
+            } else {
+              window.location.href = "/dashboard";
+            }
+          }, 800);
+          return;
+        }
         if (Array.isArray(data.detail)) {
           errorMessage = data.detail.map((d) => d.msg || d).join(", ");
         } else if (typeof data.detail === "string") {

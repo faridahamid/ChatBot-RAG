@@ -32,6 +32,8 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(Text, unique=True, nullable=False)
     password_hash = Column(Text, nullable=False)
+    email = Column(Text, nullable=False,unique=True)
+    must_change_password = Column(Boolean, default=False, server_default=text("false"), nullable=False)
     
     role = Column(Text, nullable=False)  # values enforced by DB CHECK
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)

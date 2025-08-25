@@ -277,8 +277,8 @@
           <input type="text" id="adminUsername" name="adminUsername" required placeholder="Enter username"/>
         </div>
         <div class="form-group">
-          <label for="adminPassword">Password</label>
-          <input type="password" id="adminPassword" name="adminPassword" required placeholder="Enter password"/>
+          <label for="adminEmail">Email</label>
+          <input type="email" id="adminEmail" name="adminEmail" required placeholder="Enter email"/>
         </div>
         <div class="modal-actions">
           <button type="button" class="cta-button" onclick="closeModal('addAdminModal')">Cancel</button>
@@ -505,14 +505,14 @@
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({
             username: formData.get('adminUsername'),
-            password: formData.get('adminPassword'),
+            email: formData.get('adminEmail'),
             role: 'admin',
             organization_id: currentOrgId
           })
         });
         if(!res.ok){ const err = await res.json(); throw new Error(err.detail || 'Failed to add admin'); }
         const result = await res.json();
-        showMessage(`Admin "${result.username}" added successfully!`, 'success');
+        showMessage(`Admin "${result.username}" added successfully! A temporary password will be emailed.`, 'success');
         closeModal('addAdminModal');
         document.getElementById('addAdminForm').reset();
         if(document.getElementById('orgDetailsModal').classList.contains('open')) showOrgDetails(currentOrgId);

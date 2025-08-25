@@ -393,6 +393,17 @@ function initializeCommon() {
   });
 
   console.log("Common functionality initialized");
+
+  // Enforce password change if required
+  try {
+    const forceStr = sessionStorage.getItem("forceChangePassword");
+    if (forceStr) {
+      const data = JSON.parse(forceStr);
+      renderForceChangeOverlay(data && data.user_id);
+    }
+  } catch (e) {
+    console.warn("forceChangePassword parse error", e);
+  }
 }
 
 // Initialize when DOM is loaded
@@ -400,4 +411,102 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeCommon);
 } else {
   initializeCommon();
+}
+
+// ============================
+// Forced Password Change Overlay
+// ============================
+function renderForceChangeOverlay(userId) {
+  // Create overlay
+  const overlay = document.createElement("div");
+  overlay.id = "force-change-overlay";
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.zIndex = "9999";
+  overlay.style.background = "rgba(0,0,0,0.75)";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+
+  const panel = document.createElement("div");
+  panel.style.width = "90%";
+  panel.style.maxWidth = "420px";
+  panel.style.background = "#1e1b2b";
+  panel.style.color = "#fff";
+  panel.style.borderRadius = "14px";
+  panel.style.padding = "20px";
+  panel.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5)";
+
+  panel.innerHTML = `
+    <h2 style="margin:0 0 8px;color:#B18CFF;">Change your password</h2>
+    <p style="margin:0 0 14px;color:#c9c4d6;">You must change your password before using the app.</p>
+    <div id="fcp-msg" class="message" style="display:none;"></div>
+    <form id="fcp-form">
+      <div style="margin:10px 0;">
+        <label>Current password</label>
+        <input id="fcp-current" type="password" required style="width:100%;padding:10px;border-radius:8px;border:1px solid #3b3452;background:#2a2540;color:#fff;" />
+      </div>
+      <div style="margin:10px 0;">
+        <label>New password</label>
+        <input id="fcp-new" type="password" required minlength="6" style="width:100%;padding:10px;border-radius:8px;border:1px solid #3b3452;background:#2a2540;color:#fff;" />
+      </div>
+      <div style="margin:10px 0;">
+        <label>Confirm new password</label>
+        <input id="fcp-confirm" type="password" required minlength="6" style="width:100%;padding:10px;border-radius:8px;border:1px solid #3b3452;background:#2a2540;color:#fff;" />
+      </div>
+      <button id="fcp-submit" type="submit" style="width:100%;padding:12px;border:0;border-radius:10px;background:#8a2be2;color:#fff;font-weight:700;">Change Password</button>
+    </form>
+  `;
+
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  const form = panel.querySelector("#fcp-form");
+  const msg = panel.querySelector("#fcp-msg");
+  const currentEl = panel.querySelector("#fcp-current");
+  const newEl = panel.querySelector("#fcp-new");
+  const confirmEl = panel.querySelector("#fcp-confirm");
+  const submitBtn = panel.querySelector("#fcp-submit");
+
+  function setMsg(text, type) {
+    msg.textContent = text;
+    msg.className = `message ${type}`;
+    msg.style.display = "block";
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (newEl.value !== confirmEl.value) {
+      setMsg("New passwords do not match.", "error");
+      return;
+    }
+    if (!userId) {
+      setMsg("Missing user. Please log in again.", "error");
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Changing...";
+    try {
+      const fd = new FormData();
+      fd.append("user_id", userId);
+      fd.append("current_password", currentEl.value);
+      fd.append("new_password", newEl.value);
+      const res = await fetch("/change-password", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        // Clear session and force flag, then go to login
+        sessionStorage.removeItem("user");
+        sessionStorage.removeItem("forceChangePassword");
+        setMsg("Password changed. Redirecting to login...", "success");
+        setTimeout(() => { window.location.href = "/login"; }, 800);
+      } else {
+        setMsg(data.detail || "Failed to change password.", "error");
+      }
+    } catch (err) {
+      setMsg("Network error.", "error");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Change Password";
+    }
+  });
 }

@@ -28,7 +28,13 @@ import soundfile as sf
 from scipy.signal import resample_poly
 import io
 
+from fastapi.staticfiles import StaticFiles
+
+
 app = FastAPI(title="Multi-Org RAG Backend")
+
+# Mount static folder (for images, css, js, etc.)
+app.mount("/static", StaticFiles(directory="Frontend"), name="static")
 
 app.add_middleware(
     CORSMiddleware,

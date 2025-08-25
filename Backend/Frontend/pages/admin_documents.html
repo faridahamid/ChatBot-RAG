@@ -79,6 +79,8 @@
       .action-btn{padding:.5rem 1rem;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .3s ease}
       .delete-btn{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.3)}
       .delete-btn:hover{background:rgba(220,53,69,.3);transform:translateY(-1px)}
+      .rename-btn {background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3);}
+      .rename-btn:hover {background: rgba(255, 193, 7, 0.3); transform: translateY(-1px);}
 
       /* Messages */
       .message{padding:1rem;border-radius:8px;margin-bottom:1rem;text-align:center;font-weight:500}
@@ -209,7 +211,8 @@
             </div>
             <div class="document-actions">
               <button class="action-btn delete-btn" onclick="deleteDocument('${doc.id}')">Delete</button>
-            </div>
+              <button class="action-btn rename-btn" onclick="renameDocument('${doc.id}','${doc.filename}')">Rename</button>
+              </div>
           </div>`).join('');
       }
 
@@ -240,6 +243,33 @@
           showMessage(`Delete failed: ${e.message}`,'error');
         }
       }
+
+    async function renameDocument(docId, currentName){
+        const newName = prompt("Enter new filename:", currentName);
+        if(!newName || newName.trim() === ""){
+            alert("Filename cannot be empty");
+            return;
+        }
+
+        try {
+            const res = await fetch(`/documents/${docId}/rename?new_filename=${encodeURIComponent(newName)}&user_id=${currentUser.id}`, {
+                method: "PATCH",
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert("Rename failed: " + (err.detail || JSON.stringify(err)));
+                return;
+            }
+
+            const data = await res.json();
+            alert(data.message);
+            loadDocuments(); // Refresh the document list
+        } catch (e) {
+            console.error("Rename error:", e);
+            alert("Rename failed: " + (e.message || JSON.stringify(e)));
+        }
+    }
 
       function showMessage(msg,type){
         const box=document.getElementById('message');

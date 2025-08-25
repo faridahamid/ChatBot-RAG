@@ -504,6 +504,10 @@ def upload_document(
     filetype = file.filename.split(".")[-1]
     file_bytes = file.file.read()
 
+    # NEW: Check if file is empty
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
     print(f"Processing upload: {file.filename} ({len(file_bytes)} bytes)")
 
     try:
@@ -588,6 +592,44 @@ def delete_document(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
+@app.patch("/documents/{document_id}/rename")
+def rename_document(
+    document_id: uuid.UUID,
+    new_filename: str = Query(...),
+    user_id: uuid.UUID = Query(...),
+    db: Session = Depends(get_db)
+):
+    # Fetch document
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Fetch user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check organization
+    if str(user.organization_id) != str(document.organization_id):
+        raise HTTPException(status_code=403, detail="User does not belong to this organization")
+    
+    # Check admin
+    if (user.role or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can rename documents")
+    
+    # Check organization active
+    org = db.query(Organization).filter(Organization.id == user.organization_id, Organization.is_active == True).first()
+    if not org:
+        raise HTTPException(status_code=403, detail="Organization is inactive")
+    
+    # Rename document
+    try:
+        document.filename = new_filename
+        db.commit()
+        return {"message": "Document renamed successfully", "new_filename": new_filename}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to rename document: {str(e)}")
 # ---------- DB setup ----------
 @app.on_event("startup")
 def _ensure_indexes():

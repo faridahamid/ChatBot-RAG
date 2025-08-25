@@ -1,5 +1,8 @@
 import os
 from typing import List, Tuple, Optional
+import re
+import json
+
 import google.generativeai as genai
 
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
@@ -42,10 +45,10 @@ def make_prompt(
     chat_history: Optional[List[Tuple[str, str]]] = None
 ) -> str:
     """
-    Build the final prompt. Language handling and greeting-only logic are handled by the model per SYSTEM_RULES.
+    Build the final prompt. The LLM will determine if it's a greeting and respond appropriately.
     """
-    # join snippets or provide an explicit none marker (lets the model do greeting-only or "don't know")
-    ctx_joined = "\n\n---\n\n".join(context_snippets) if context_snippets else "(none)"
+    # join snippets or provide an explicit none marker
+    ctx_joined = "\n\n---\n\n".join(context_snippets) if context_snippets else "(no relevant context)"
 
     history_block = ""
     if chat_history:
@@ -62,12 +65,19 @@ def make_prompt(
 Context snippets:
 {ctx_joined}
 
-Decision checklist for you:
-1) First, detect the user's language from their last message and reply ONLY in that language.
-2) If the message is greeting-only, reply with one friendly line and a brief offer to help (no retrieval).
-3) Otherwise, answer strictly from the context snippets; if the answer is not present, say you don't know in the user's language.
+CRITICAL INSTRUCTIONS:
+1) FIRST, determine if this is a greeting/small talk OR a substantive question
+2) FOR GREETINGS (hello, hi, how are you, etc. in any language): 
+   - Respond with a friendly greeting ONLY
+   - DO NOT use any context snippets
+   - DO NOT mention any documents or sources
+3) FOR SUBSTANTIVE QUESTIONS:
+   - Answer strictly from the context snippets in the user's language
+   - If answer is not in context, say you don't know
+   - NEVER include file names, sources, or document references in your response
+4) YOUR RESPONSE MUST NEVER CONTAIN: "Sources:", file names, or any reference to documents
 
-Now respond:
+Now respond with ONLY the appropriate message:
 """
 
 
@@ -114,3 +124,112 @@ Standalone rewritten query:"""
         return rewritten or latest_user_question
     except Exception:
         return latest_user_question
+    
+    
+CLASSIFY_RULES = """
+You are an intent classifier. Decide if the user's message is ONLY a greeting/small talk
+or if it requires an answer (including greeting + a question).
+
+Return STRICT JSON with these keys:
+- "intent": "greeting_only" OR "needs_answer"
+- "reply": for greeting_only ONLY: a short friendly greeting in the user's language offering help.
+          for needs_answer: an empty string "".
+- "lang": using the user's message language detect it and answer with it 
+
+Rules:
+- If the message includes any question, instruction, or topic beyond greeting → "needs_answer".
+- Output JSON ONLY. No markdown, no explanations, no extra text.
+"""
+
+def _extract_json_maybe(s: str) -> str:
+    
+    m = re.search(r'\{.*\}', s, flags=re.DOTALL)
+    return m.group(0) if m else s
+
+def classify_message_llm(user_msg: str) -> dict:
+    model = get_gemini()
+    prompt = f"""{CLASSIFY_RULES}
+
+User message:
+{user_msg}
+
+JSON:"""
+    out = model.generate_content(prompt)
+    txt = (getattr(out, "text", "") or "").strip()
+    
+    txt = _extract_json_maybe(txt)
+    try:
+        obj = json.loads(txt)
+        if obj.get("intent") in ("greeting_only", "needs_answer") and isinstance(obj.get("reply",""), str):
+            return obj
+    except Exception:
+        pass
+
+    
+    is_ar = bool(re.search(r'[\u0600-\u06FF]', user_msg or ""))
+    return {
+        "intent": "needs_answer",
+        "reply": "" if not is_ar else "مرحباً! كيف يمكنني مساعدتك؟",
+        "lang": "ar" if is_ar else "en"
+    }
+    
+JUDGE_RULES = """
+You are an answerability judge. Decide if the assistant's draft answer provides real information grounded in the given context snippets, or if it effectively says it does not know / that the information isn't available in the context.
+
+Return STRICT JSON with:
+- "status": "answerable" OR "unknown"
+- "reply_if_unknown": a single short, friendly sentence in the user's language that politely says you don't have this information in the organization's knowledge base and invites the user to rephrase or ask something else.
+
+Guidelines:
+- If the draft answer indicates lack of information, refusal to answer due to missing context, or cannot be grounded in the snippets → "unknown".
+- Only call "answerable" if the draft contains a substantive answer that is reasonably derivable from the snippets.
+- Output JSON ONLY. No extra text.
+"""
+
+def judge_answer_llm(user_msg: str, context_snippets: List[str], draft_answer: str) -> dict:
+    model = get_gemini()
+    snippets_joined = "\n\n---\n\n".join(context_snippets) if context_snippets else "(no relevant context)"
+    prompt = f"""{JUDGE_RULES}
+
+User message:
+{user_msg}
+
+Context snippets:
+{snippets_joined}
+
+Assistant draft answer:
+{draft_answer}
+
+JSON:"""
+    out = model.generate_content(prompt)
+    txt = (getattr(out, "text", "") or "").strip()
+    txt = _extract_json_maybe(txt)
+    try:
+        obj = json.loads(txt)
+        if obj.get("status") in ("answerable", "unknown") and isinstance(obj.get("reply_if_unknown",""), str):
+            return obj
+    except Exception:
+        pass
+    # Safe fallback: treat as answerable to avoid hiding valid answers
+    return {"status": "answerable", "reply_if_unknown": ""}
+
+# ---------- LLM builder for unknown reply when retrieval returned nothing ----------
+UNKNOWN_REPLY_RULES = """
+You are a helpful assistant. The system found no relevant information in its knowledge base for the user's request.
+Reply with ONE short, friendly sentence in the user's language to say that you don't have this information in the organization's knowledge base and they may try rephrasing or asking about a different topic. Do NOT include sources or file names. Plain text only.
+"""
+
+def make_unknown_reply_llm(user_msg: str) -> str:
+    model = get_gemini()
+    prompt = f"""{UNKNOWN_REPLY_RULES}
+
+User message:
+{user_msg}
+
+Reply:"""
+    out = model.generate_content(prompt)
+    txt = (getattr(out, "text", "") or "").strip()
+    # If model failed, minimal fallback based on language heuristic
+    if not txt:
+        return "لا أملك معلومات كافية حول هذا الموضوع في قاعدة المعرفة." if re.search(r'[\u0600-\u06FF]', user_msg or "") else "Sorry, I don't have information about that in the knowledge base."
+    return txt

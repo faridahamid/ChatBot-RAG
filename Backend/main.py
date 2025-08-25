@@ -3,6 +3,8 @@ import uuid
 from typing import List, Optional, Tuple
 from datetime import datetime, timedelta
 import re
+import json
+
 
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -18,7 +20,8 @@ from schemas import (
     OrganizationResponse, UserResponse, FeedbackCreate, FeedbackResponse, FeedbackUpdate
 )
 from ingestion import process_document, process_document_from_bytes, embed_query
-from llm import get_gemini, make_prompt, rewrite_query_with_history
+from llm import get_gemini, make_prompt, rewrite_query_with_history, classify_message_llm,judge_answer_llm,make_unknown_reply_llm
+
 from admin_auth import router as admin_router
 
 from langdetect import detect
@@ -353,9 +356,10 @@ def update_chat_title(chat_id: str, payload: dict, db: Session = Depends(get_db)
     return {"message": "Chat title updated successfully", "title": title}
 
 # ---------- RAG API with MEMORY ----------
+
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, db: Session = Depends(get_db)):
-    # Validate user & org
+    # 1) Validate user & org
     user = db.query(User).filter(User.id == payload.user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -364,7 +368,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     if (user.role or "").lower() not in ("user", "admin"):
         return AskResponse(answer="Your role is not permitted to use the chat.")
 
-    # Get (or create) chat
+    # 2) Get (or create) chat
     if payload.chat_id:
         chat = db.query(Chat).filter(Chat.id == payload.chat_id, Chat.user_id == payload.user_id).first()
         if not chat:
@@ -381,13 +385,19 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
             db.add(chat)
             db.flush()
 
-    # Detect user language (for the answer language only)
-    try:
-        qlang = (detect(payload.question) or "en").lower()
-    except Exception:
-        qlang = "en"
+    # 3) LLM decides if greeting-only (early exit; NO retrieval; NO sources)
+    cls = classify_message_llm(payload.question)
+    if cls.get("intent") == "greeting_only":
+        greet = cls.get("reply") or ("مرحباً! كيف يمكنني مساعدتك؟" if re.search(r'[\u0600-\u06FF]', payload.question) else "Hi! How can I help you today?")
+        try:
+            db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
+            db.add(ChatMessage(chat_id=chat.id, role="assistant", content=greet, citations=[]))
+            db.commit()
+        except Exception:
+            db.rollback()
+        return AskResponse(answer=greet, sources=[])
 
-    # Recent history
+    # 4) Recent history for rewrite + answer prompt
     history_rows = (
         db.query(ChatMessage)
         .filter(ChatMessage.chat_id == chat.id)
@@ -397,51 +407,49 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     )
     history: List[Tuple[str, str]] = [(m.role, m.content) for m in reversed(history_rows)]
 
-    # Rewrite to standalone query (preserves language)
+    # 5) Rewrite to standalone query
     history_for_rewrite = history[-7:]
     standalone_query = rewrite_query_with_history(
         payload.question, history_for_rewrite + [("user", payload.question)]
     )
 
-    # Embed & retrieve (multilingual model—no translation fallback needed)
+    # 6) Embed & retrieve top-K chunks
     qvec = embed_query(standalone_query)
     qvec_np = np.array(qvec, dtype=np.float32)
 
     top_k = int(os.getenv("RAG_TOP_K", "40"))
-    sql = text(
-        f"""
-        SELECT 
-            dc.id AS chunk_id,
-            dc.content AS content,
-            d.filename AS filename,
-            (dc.embedding <=> (:q)::vector) AS distance
-        FROM document_chunks AS dc
-        JOIN documents AS d ON d.id = dc.document_id
-        WHERE d.organization_id = :org
-        ORDER BY dc.embedding <=> (:q)::vector
-        LIMIT {top_k}
-        """
-    )
-    rows = db.execute(sql, {"q": qvec_np.tolist(), "org": str(payload.org_id)}).fetchall()
+    rows = db.execute(
+        text(f"""
+            SELECT 
+                dc.id AS chunk_id,
+                dc.content AS content,
+                d.filename AS filename,
+                (dc.embedding <=> (:q)::vector) AS distance
+            FROM document_chunks AS dc
+            JOIN documents AS d ON d.id = dc.document_id
+            WHERE d.organization_id = :org
+            ORDER BY dc.embedding <=> (:q)::vector
+            LIMIT {top_k}
+        """),
+        {"q": qvec_np.tolist(), "org": str(payload.org_id)}
+    ).fetchall()
 
-    def row2score(r):
-        return max(0.0, 1.0 - float(r.distance))
-
-    snippets = [r.content for r in rows]
-
+    # 6.a) No retrieved rows → ask LLM to produce a polite unknown reply (NO sources)
     if not rows:
-        base_msg_en = "I don't have information about that in this organization's knowledge base."
-        msg = translate_text_simple(base_msg_en, qlang)
+        unknown_reply = make_unknown_reply_llm(payload.question)
         try:
             db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
-            db.add(ChatMessage(chat_id=chat.id, role="assistant", content=msg, citations=[]))
+            db.add(ChatMessage(chat_id=chat.id, role="assistant", content=unknown_reply, citations=[]))
             db.commit()
         except Exception:
             db.rollback()
-        return AskResponse(answer=msg, sources=[])
+        return AskResponse(answer=unknown_reply, sources=[])
 
-    # Build prompt & answer in user's language
+    def row2score(r): return max(0.0, 1.0 - float(r.distance))
     keep = int(os.getenv("RAG_LLM_SNIPPETS", "8"))
+    snippets = [r.content for r in rows]
+
+    # 7) Build answer prompt and get LLM draft answer
     history_for_answer = history[-6:]
     prompt = make_prompt(
         question=payload.question,
@@ -453,17 +461,47 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
     try:
         result = model.generate_content(prompt)
         answer_text = (getattr(result, "text", "") or "").strip()
+        # Strip any accidental "Sources:"
+        answer_text = re.sub(r'\n*Sources?:.*', '', answer_text, flags=re.IGNORECASE).strip()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {e}")
 
-    # Persist exchange
-    try:
-        db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
+    # 8) Ask the LLM-judge if this answer is "answerable" or "unknown"
+    verdict = judge_answer_llm(payload.question, snippets[:keep], answer_text)
+    is_unknown = verdict.get("status") == "unknown"
+
+    # 9) Prepare sources only if answerable
+    citations = []
+    unique_filenames = []
+    final_answer = answer_text
+
+    if not is_unknown:
         citations = [
             {"chunk_id": str(r.chunk_id), "filename": r.filename, "score": row2score(r)}
             for r in rows[:keep]
         ]
-        db.add(ChatMessage(chat_id=chat.id, role="assistant", content=answer_text, citations=citations))
+        seen = set()
+        for r in rows[:keep]:
+            if r.filename and r.filename not in seen:
+                unique_filenames.append(r.filename)
+                seen.add(r.filename)
+        if unique_filenames:
+            final_answer += "\n\nSources:\n" + "\n".join(unique_filenames)
+        sources_to_return = unique_filenames
+    else:
+        # إذا الحكم Unknown، لا نضيف مصادر. نُبقي رد الـLLM كما هو (أو نستخدم reply_if_unknown لو تحب).
+        sources_to_return = []
+
+    # 10) Persist exchange
+    try:
+        db.add(ChatMessage(chat_id=chat.id, role="user", content=payload.question))
+        db.add(ChatMessage(
+            chat_id=chat.id,
+            role="assistant",
+            content=final_answer,
+            citations=citations if not is_unknown else []
+        ))
+        # عنوان المحادثة
         try:
             msg_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
             if (msg_count == 0) or (not chat.title) or (chat.title.strip().lower() == "new chat"):
@@ -475,14 +513,8 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
         db.rollback()
         print(f"Error persisting chat: {e}")
 
-    # Collect unique filenames from the top sources
-    top_filenames = list({r.filename for r in rows[:keep] if r.filename})
-    print(f"[DEBUG] Sources for answer: {top_filenames}")
-    # Always append sources section, even if empty
-    sources_text = "\n\nSources:\n" + ("\n".join(top_filenames) if top_filenames else "None found")
-    answer_text_with_sources = answer_text + sources_text
-    return AskResponse(answer=answer_text_with_sources, sources=top_filenames)
-# ---------- Upload ----------
+    return AskResponse(answer=final_answer, sources=sources_to_return)
+
 @app.post("/upload", response_model=UploadResponse)
 def upload_document(
     org_id: uuid.UUID = Form(...),

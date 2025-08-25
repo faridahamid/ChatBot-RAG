@@ -10,6 +10,10 @@
         padding: 0;
         box-sizing: border-box;
       }
+      
+      html {
+        scroll-behavior: smooth;
+      } 
 
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -416,6 +420,137 @@
           align-items: center;
         }
       }
+
+/* Contact Section */
+#contact {
+  background: #140f1e;
+  padding: 4rem 2rem;
+}
+
+#contact .section-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  color: #E9E7F1;
+  font-weight: 700;
+  letter-spacing: 1px;
+  position: relative;
+}
+
+#contact .section-title::after {
+  content: "";
+  display: block;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #B18CFF, #6C63FF);
+  margin: 1rem auto 0;
+  border-radius: 2px;
+}
+
+/* Grid layout for contact cards */
+.contact-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Card styling */
+.contact-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3rem 2.5rem;
+  border-radius: 20px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  backdrop-filter: blur(6px);
+}
+
+.contact-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+  background: rgba(255,255,255,0.08);
+}
+
+/* Profile image */
+.contact-card img {
+  width: 180px;
+height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+  border: 3px solid #B18CFF;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.contact-card:hover img {
+  transform: scale(1.08);
+  border-color: #fff;
+}
+
+/* Name */
+.contact-card h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.8rem;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Info */
+.contact-card p {
+  font-size: 1rem;
+  color: #c9c4d6;
+  line-height: 1.6;
+}
+
+/* Links */
+.contact-card a {
+  color: #B18CFF;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.contact-card a:hover {
+  color: #fff;
+  text-decoration: underline;
+  text-shadow: 0 0 8px rgba(177, 140, 255, 0.8);
+}
+
+.section-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  color: #E9E7F1;
+  font-weight: 700;
+  letter-spacing: 1px;
+  position: relative;
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #B18CFF, #6C63FF);
+  margin: 1rem auto 0;
+  border-radius: 2px;
+}
+
+    /* Responsive for Mobile */
+    @media (max-width: 768px) {
+      #contact {
+        padding: 3rem 1rem;
+      }
+
+      #contact .section-title {
+        font-size: 2rem;
+        margin-bottom: 2rem;
+      }
+    }
+
     </style>
   <head>
     <meta charset="UTF-8" />
@@ -563,6 +698,34 @@
         </div>
       </section>
     </main>
+    
+    <!-- Contact Us -->
+    <!-- Contact Section -->
+<section id="contact">
+  <h2 class="section-title">Contact Us</h2>
+  
+  <div class="contact-cards">
+    <!-- Card 1 -->
+    <div class="contact-card">
+      <img src="/static/Images/rehab_.jpg" alt="Rehab Hamdy">
+      <h3>Rehab Hamdy</h3>
+      <p>
+        <a href="https://www.linkedin.com/in/rehab-hamdy-83568424b" target="_blank">LinkedIn</a><br>
+        <a href="mailto:rehabhamdy15@gmail.com">rehabhamdy15@gmail.com</a>
+      </p>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="contact-card">
+      <img src="/static/Images/farida.jpg" alt="Farida Hamid">
+      <h3>Farida Hamid</h3>
+      <p>
+        <a href="https://www.linkedin.com/in/farida-hamid-6740b8253?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app" target="_blank">LinkedIn</a><br>
+        <a href="mailto:friend.email@example.com">faridahaimd2004@gmail.com</a>
+      </p>
+    </div>
+</section>
+
 
     <!-- Login Modal -->
     <div id="loginOverlay" class="modal-overlay" aria-hidden="true">
@@ -591,7 +754,7 @@
       <div class="container">
         <p>&copy; 2025 RAG ChatBot. All rights reserved.</p>
         <p>
-          Powered by advanced AI technology for intelligent knowledge
+          Powered by advanced AI technology for intelligent knowledge management
 
         </p>
         <p>Created By Farida Hamid and Rehab Hamdy</p>

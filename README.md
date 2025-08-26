@@ -70,7 +70,7 @@ This helps monitor answer quality and improve the knowledge base.
 
 Admins have statistics about the average rating and the average rating of each user 
 
-![Statistics](ScreenShots/statistics.png)
+![Statistics](ScreenShots/Statistics.png)
 
 They can also view the ratings of the users and there comment and mark them as read to improve the quality and monitor the answers of the bot and the user's experience
 

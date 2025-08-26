@@ -143,7 +143,7 @@
         <div class="documents-stats" id="documentsStats">
           <div class="stat-card"><div class="stat-number" id="totalDocuments">0</div><div class="stat-label">Total Documents</div></div>
           <div class="stat-card"><div class="stat-number" id="totalChunks">0</div><div class="stat-label">Total Chunks</div></div>
-          <div class="stat-card"><div class="stat-number" id="totalSize">0 MB</div><div class="stat-label">Total Size</div></div>
+          <!-- <div class="stat-card"><div class="stat-number" id="totalSize">0 MB</div><div class="stat-label">Total Size</div></div>  -->
         </div>
 
         <div class="documents-list" id="documentsList"><div class="loading">Loading documents...</div></div>
@@ -222,7 +222,7 @@
         const totalSize=docs.reduce((s,d)=>s+(d.file_size||0),0);
         document.getElementById('totalDocuments').textContent=totalDocs;
         document.getElementById('totalChunks').textContent=totalChunks;
-        document.getElementById('totalSize').textContent=formatFileSize(totalSize);
+        //document.getElementById('totalSize').textContent=formatFileSize(totalSize); --> -->
       }
 
       function formatFileSize(bytes){

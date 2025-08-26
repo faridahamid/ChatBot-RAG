@@ -20,7 +20,7 @@ Admins retain full control over **content uploads, user management, and feedback
 Each organization has a separate, siloed knowledge base with no data leakage.  
 Users and admins from one organization cannot access the data, documents, or chat history of another organization. This ensures strict data privacy and compliance for multi-tenant deployments.
 
-![Organization Isolation](ScreenShots\Superadmin.png)
+![Organization Isolation](ScreenShots/Superadmin.png)
 
 
 
@@ -32,15 +32,15 @@ Users and admins from one organization cannot access the data, documents, or cha
 Secure authentication for **admins** and **users**, with strict org-level boundaries.  
 Admins manage users and documents within their organization; users can only access chat and their own conversation history.There is a super admin that assign and create the admins for each organization and the admin is the one that creates the users.
 
-![Adding an Admin](ScreenShots\Add_admin.png)
+![Adding an Admin](ScreenShots/Add_admin.png)
 
 After creating an admin by the super admin or a user by the admin an email is sent to the admin/user (the created one)having the Temporary Password and asking him to change the password.
 
-![Email](ScreenShots\Email.png)
+![Email](ScreenShots/Email.png)
 
 The Change password redirects him/her to change there password and they can't login with the temporary one
 
-![Change Password](ScreenShots\Change_pass.png)
+![Change Password](ScreenShots/Change_pass.png)
 
 
 
@@ -51,7 +51,7 @@ The Change password redirects him/her to change there password and they can't lo
 Supports PDF, DOCX, TXT, CSV. Files are processed, chunked, and embedded automatically.  
 Admins can upload documents in various formats to build a rich, searchable knowledge base.
 
-![Admin Document Management](ScreenShots\Admin_doc.png)
+![Admin Document Management](ScreenShots/Admin_doc.png)
 
 ---
 
@@ -59,7 +59,7 @@ Admins can upload documents in various formats to build a rich, searchable knowl
 Accurate, context-aware answers using Gemini API with organization-specific embeddings.  
 When a user asks a question, the system retrieves the most relevant document chunks and sends them, along with the user’s query, to the Gemini API.
 
-![Chatbot](ScreenShots\Chatbot.png)
+![Chatbot](ScreenShots/Chatbot.png)
 
 
 ---
@@ -70,11 +70,11 @@ This helps monitor answer quality and improve the knowledge base.
 
 Admins have statistics about the average rating and the average rating of each user 
 
-![Statistics](ScreenShots\statistics.png)
+![Statistics](ScreenShots/statistics.png)
 
 They can also view the ratings of the users and there comment and mark them as read to improve the quality and monitor the answers of the bot and the user's experience
 
-![View Ratings & read them](ScreenShots\View_Feedback.png)
+![View Ratings & read them](ScreenShots/View_Feedback.png)
 
 
 ---
@@ -88,7 +88,7 @@ Users can review previous chats, and admins can teat the chatbot and also have h
 ### Fallback Handling
 If the chatbot cannot answer confidently, it returns a fallback message or if the user asks about other organization or data isn't in the present documents.  
 
-![Fallback](ScreenShots\Bot_can't.png)
+![Fallback](ScreenShots/Bot_can't.png)
 
 
 

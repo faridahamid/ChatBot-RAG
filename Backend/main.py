@@ -495,7 +495,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
             final_answer += "\n\nSources:\n" + "\n".join(unique_filenames)
         sources_to_return = unique_filenames
     else:
-        # إذا الحكم Unknown، لا نضيف مصادر. نُبقي رد الـLLM كما هو (أو نستخدم reply_if_unknown لو تحب).
+        
         sources_to_return = []
 
     # 10) Persist exchange
@@ -507,7 +507,7 @@ def ask(payload: AskRequest, db: Session = Depends(get_db)):
             content=final_answer,
             citations=citations if not is_unknown else []
         ))
-        # عنوان المحادثة
+        
         try:
             msg_count = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).count()
             if (msg_count == 0) or (not chat.title) or (chat.title.strip().lower() == "new chat"):

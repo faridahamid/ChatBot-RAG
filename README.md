@@ -222,3 +222,12 @@ The following video demonstrates the complete workflow of the Multi-Organization
 It covers the main features, including admin and user registration, document upload, chat interaction, feedback system, speech-to-text functionality, and cross-lingual retrieval.  
 
 [Watch the Full Platform ](https://youtu.be/q7oVBK4CPss)
+
+
+## Agentic RAG (MCP) Edition
+
+An alternative build of this platform that’s **agentic** and powered by the **Model Context Protocol (MCP)**.  
+This edition exposes core actions (document retrieval, vector search, SQL queries, web fetch, etc.) as **MCP tools**, enabling MCP-compatible clients to orchestrate multi-step reasoning and tool use autonomously.
+
+### Repository
+**Agentic MCP Version:** https://github.com/faridahamid/Agentic-ChatBot-RAG

@@ -211,7 +211,6 @@ A user can ask a question in one language (e.g., Arabic) and still retrieve rele
 | **Vector DB**       | PostgreSQL + `pgvector` |
 | **Embeddings**      | SentenceTransformers (`distiluse-base-multilingual-cased-v2`) |
 | **LLM Provider**    | Google Gemini API |
-| **Framework**       | LangChain |
 | **File Processing** | PyPDF, python-docx, pandas |
 | **Authentication**  | bcrypt |
 
